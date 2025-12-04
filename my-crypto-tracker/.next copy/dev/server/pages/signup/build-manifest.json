@@ -1,0 +1,22 @@
+{
+  "devFiles": [],
+  "ampDevFiles": [],
+  "polyfillFiles": [],
+  "lowPriorityFiles": [],
+  "rootMainFiles": [],
+  "pages": {
+    "/signup": [
+      "static/chunks/efa63_next_dist_compiled_20662be7._.js",
+      "static/chunks/efa63_next_dist_shared_lib_18c8d32a._.js",
+      "static/chunks/efa63_next_dist_client_e5f1ee15._.js",
+      "static/chunks/efa63_next_dist_bb0d574e._.js",
+      "static/chunks/efa63_next_2163c0a5._.js",
+      "static/chunks/efa63_react-dom_ae66f6d0._.js",
+      "static/chunks/efa63_84facafa._.js",
+      "static/chunks/[root-of-the-server]__88b243e3._.js",
+      "static/chunks/my-crypto-tracker_src_pages_signup_2da965e7._.js",
+      "static/chunks/turbopack-my-crypto-tracker_src_pages_signup_fc458c98._.js"
+    ]
+  },
+  "ampFirstPages": []
+}

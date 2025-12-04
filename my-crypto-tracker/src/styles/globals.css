@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+/* Custom Animations */
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+.animate-fade-in {
+  animation: fade-in 1s ease-out;
+}
+
+/* Slide in from left with rainbow effect */
+@keyframes slide-in-rainbow {
+  0% {
+    opacity: 0;
+    transform: translateX(-80px) scale(0.9);
+  }
+  60% {
+    opacity: 0.9;
+    transform: translateX(5px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.animate-slide-in-rainbow {
+  animation: slide-in-rainbow 0.8s ease-out forwards;
+}
+
+/* Slide in from right for toast (bottom right) */
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(100px) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+/* Blue gradient effects for each stat */
+.rainbow-1 {
+  animation-delay: 0.1s;
+  box-shadow: -4px 0 8px rgba(37, 99, 235, 0.3);
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.1) 0%, transparent 100%);
+  padding-left: 12px;
+  margin-left: -12px;
+}
+
+.rainbow-2 {
+  animation-delay: 0.2s;
+  box-shadow: -4px 0 8px rgba(30, 64, 175, 0.3);
+  background: linear-gradient(90deg, rgba(30, 64, 175, 0.1) 0%, transparent 100%);
+  padding-left: 12px;
+  margin-left: -12px;
+}
+
+.rainbow-3 {
+  animation-delay: 0.3s;
+  box-shadow: -4px 0 8px rgba(29, 78, 216, 0.3);
+  background: linear-gradient(90deg, rgba(29, 78, 216, 0.1) 0%, transparent 100%);
+  padding-left: 12px;
+  margin-left: -12px;
+}
+
+.rainbow-4 {
+  animation-delay: 0.4s;
+  box-shadow: -4px 0 8px rgba(30, 58, 138, 0.3);
+  background: linear-gradient(90deg, rgba(30, 58, 138, 0.1) 0%, transparent 100%);
+  padding-left: 12px;
+  margin-left: -12px;
+}
+
+.rainbow-5 {
+  animation-delay: 0.5s;
+  box-shadow: -4px 0 8px rgba(37, 99, 235, 0.3);
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.1) 0%, transparent 100%);
+  padding-left: 12px;
+  margin-left: -12px;
+}
+
+.rainbow-6 {
+  animation-delay: 0.6s;
+  box-shadow: -4px 0 8px rgba(30, 64, 175, 0.3);
+  background: linear-gradient(90deg, rgba(30, 64, 175, 0.1) 0%, transparent 100%);
+  padding-left: 12px;
+  margin-left: -12px;
+}
+
+/* Hide scrollbar for market stats */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+

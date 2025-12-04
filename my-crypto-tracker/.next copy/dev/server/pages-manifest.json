@@ -1,0 +1,13 @@
+{
+  "/": "pages/index.js",
+  "/_app": "pages/_app.js",
+  "/_document": "pages/_document.js",
+  "/api/chart/[coinId]": "pages/api/chart/[coinId].js",
+  "/api/coins": "pages/api/coins.js",
+  "/api/coins/[coinId]": "pages/api/coins/[coinId].js",
+  "/api/coins/[coinId]/details": "pages/api/coins/[coinId]/details.js",
+  "/api/coins/[coinId]/news": "pages/api/coins/[coinId]/news.js",
+  "/api/fear-greed": "pages/api/fear-greed.js",
+  "/api/global": "pages/api/global.js",
+  "/currencies/[coinId]": "pages/currencies/[coinId].js"
+}
