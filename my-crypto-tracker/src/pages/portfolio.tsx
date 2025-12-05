@@ -197,7 +197,7 @@ const PortfolioPage: React.FC = () => {
               <p className="text-gray-600 mb-6">Coin listesinden coin ekleyerek portföyünüzü oluşturabilirsiniz.</p>
               <Link 
                 href="/"
-                className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 via-yellow-500 to-red-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all"
+                className="inline-block px-6 py-3 bg-[#2563EB] hover:bg-[#1E40AF] text-white font-semibold rounded-xl hover:shadow-lg transition-all"
               >
                 Coin Listesine Git
               </Link>

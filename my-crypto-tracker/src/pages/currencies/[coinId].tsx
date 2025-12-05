@@ -620,8 +620,8 @@ const CoinDetailPage: React.FC = () => {
                 }}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
                   portfolio.includes(coin.id)
-                    ? 'bg-gradient-to-r from-blue-500 via-yellow-500 via-red-500 to-green-500 text-white shadow-lg'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-600'
+                    ? 'bg-[#2563EB] hover:bg-[#1E40AF] text-white shadow-lg'
+                    : 'bg-gray-100 hover:bg-[#2563EB] hover:text-white text-gray-400'
                 }`}
                 title={portfolio.includes(coin.id) ? 'Portföyden çıkar' : 'Portföye ekle'}
               >
@@ -1023,7 +1023,7 @@ const CoinDetailPage: React.FC = () => {
                 href={`https://cointelegraph.com/search?q=${coin.name}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block px-8 py-4 bg-gradient-to-r from-blue-600 via-yellow-500 to-red-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg"
+                className="inline-block px-8 py-4 bg-[#2563EB] hover:bg-[#1E40AF] text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg"
               >
                 Daha Fazla Haber Gör
               </a>
@@ -1442,8 +1442,8 @@ const CoinDetailPage: React.FC = () => {
 
       {/* Toast Notification */}
       {toast.visible && (
-        <div className="fixed bottom-4 right-4 z-50 animate-slide-in-right">
-          <div className="bg-gradient-to-r from-blue-500 via-yellow-500 via-red-500 to-green-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px]">
+        <div className="fixed bottom-12 right-4 z-50 animate-slide-in-right">
+          <div className="bg-[#2563EB] text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px]">
             <div className="flex-shrink-0">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

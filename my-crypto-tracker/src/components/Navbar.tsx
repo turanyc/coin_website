@@ -156,7 +156,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
               <div className="relative">
                 <button
                   onClick={() => setOpenDropdown(openDropdown === 'kripto' ? null : 'kripto')}
-                  className="flex items-center gap-1 px-4 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white whitespace-nowrap"
+                  className="flex items-center gap-1 px-4 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-[#2563EB] hover:text-white whitespace-nowrap"
                 >
                   <span>Kripto Paralar</span>
                   <svg className={`w-4 h-4 transition-transform ${openDropdown === 'kripto' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,37 +169,31 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
                       {/* Blok 1 */}
                       <div className="flex-1">
                         <div className="space-y-1">
-                          <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
+                          <Link href="/" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
                             <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                             </svg>
                             <span className="font-medium">Sıralama</span>
-                          </a>
-                          <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
+                          </Link>
+                          <Link href="/categories" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
                             <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
                             <span className="font-medium">Kategoriler</span>
-                          </a>
-                          <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
+                          </Link>
+                          <Link href="/historical-snapshot" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
                             <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                             <span className="font-medium">Geçmiş Anlık Görüntüler</span>
-                          </a>
-                          <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
-                            <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                            </svg>
-                            <span className="font-medium">Token Kilidi Açılmaları</span>
-                          </a>
-                          <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
+                          </Link>
+                          <Link href="/yield" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
                             <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             <span className="font-medium">Getiri</span>
-                          </a>
+                          </Link>
                           <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
                             <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -214,38 +208,38 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
                         <div className="mb-3">
                           <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Liderlik Tabloları</h4>
                           <div className="space-y-1">
-                            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
+                            <Link href="/trending" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
                               <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                               </svg>
                               <span className="font-medium">Trend</span>
-                            </a>
-                            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
+                            </Link>
+                            <Link href="/upcoming" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
                               <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               <span className="font-medium">Yakında</span>
-                            </a>
-                            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
+                            </Link>
+                            <Link href="/recently-added" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
                               <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                               </svg>
                               <span className="font-medium">Son Eklenenler</span>
-                            </a>
-                            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
+                            </Link>
+                            <Link href="/gainers-losers" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
                               <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
                               </svg>
                               <span className="font-medium">Kazananlar ve Kaybedenler</span>
-                            </a>
-                            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
+                            </Link>
+                            <Link href="/most-visited" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
                               <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                               </svg>
                               <span className="font-medium">En Çok Ziyaret Edilenler</span>
-                            </a>
+                            </Link>
                             <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
                               <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -291,7 +285,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
               <div className="relative">
                 <button
                   onClick={() => setOpenDropdown(openDropdown === 'dashboard' ? null : 'dashboard')}
-                  className="flex items-center gap-1 px-4 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white"
+                  className="flex items-center gap-1 px-4 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-[#2563EB] hover:text-white"
                 >
                   Kontrol Paneli
                   <svg className={`w-4 h-4 transition-transform ${openDropdown === 'dashboard' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -460,7 +454,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
               </div>
 
               {/* DexScan Link */}
-              <Link href="#" className="px-4 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white">
+              <Link href="#" className="px-4 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-[#2563EB] hover:text-white">
                 DexScan
               </Link>
 
@@ -468,7 +462,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
               <div className="relative">
                 <button
                   onClick={() => setOpenDropdown(openDropdown === 'borsalar' ? null : 'borsalar')}
-                  className="flex items-center gap-1 px-4 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white"
+                  className="flex items-center gap-1 px-4 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-[#2563EB] hover:text-white"
                 >
                   Borsalar
                   <svg className={`w-4 h-4 transition-transform ${openDropdown === 'borsalar' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -525,7 +519,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
               </div>
 
               {/* Topluluk Link */}
-              <Link href="#" className="px-4 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white">
+              <Link href="#" className="px-4 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-[#2563EB] hover:text-white">
                 Topluluk
               </Link>
 
@@ -533,7 +527,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
               <div className="relative">
                 <button
                   onClick={() => setOpenDropdown(openDropdown === 'urunler' ? null : 'urunler')}
-                  className="flex items-center gap-1 px-4 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white"
+                  className="flex items-center gap-1 px-4 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-[#2563EB] hover:text-white"
                 >
                   Ürünler
                   <svg className={`w-4 h-4 transition-transform ${openDropdown === 'urunler' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -786,7 +780,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
             </button>
 
             {/* Portföy */}
-            <Link href="/portfolio" className="hidden lg:flex items-center gap-2 px-3 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white">
+            <Link href="/portfolio" className="hidden lg:flex items-center gap-2 px-3 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-[#2563EB] hover:text-white">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
@@ -794,7 +788,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
             </Link>
 
             {/* İzleme Listesi */}
-            <button className="hidden lg:flex items-center gap-2 px-3 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white">
+            <button className="hidden lg:flex items-center gap-2 px-3 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-[#2563EB] hover:text-white">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
               </svg>
@@ -869,7 +863,9 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
         ></div>
       )}
 
-      {/* Tab Menu - Navbar Altında */}
+      {/* Tab Menu - Navbar Altında - Sadece Ana Sayfada */}
+      {router.pathname === '/' && (
+      <>
       <div className="bg-white border-b border-gray-200">
         <div className="w-full px-4">
           <div className="flex items-center gap-6 overflow-x-auto scrollbar-hide">
@@ -1105,7 +1101,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
           <div className="w-full px-4">
             <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
               {/* Question Button 1 */}
-              <button className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl transition-all duration-200 whitespace-nowrap flex-shrink-0 hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white hover:border-transparent">
+              <button className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl transition-all duration-200 whitespace-nowrap flex-shrink-0 hover:bg-[#2563EB] hover:text-white hover:border-transparent">
                 <svg className="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" />
                 </svg>
@@ -1113,7 +1109,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
               </button>
 
               {/* Question Button 2 */}
-              <button className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl transition-all duration-200 whitespace-nowrap flex-shrink-0 hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white hover:border-transparent">
+              <button className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl transition-all duration-200 whitespace-nowrap flex-shrink-0 hover:bg-[#2563EB] hover:text-white hover:border-transparent">
                 <svg className="w-4 h-4 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
@@ -1121,7 +1117,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
               </button>
 
               {/* Question Button 3 */}
-              <button className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl transition-all duration-200 whitespace-nowrap flex-shrink-0 hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white hover:border-transparent">
+              <button className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl transition-all duration-200 whitespace-nowrap flex-shrink-0 hover:bg-[#2563EB] hover:text-white hover:border-transparent">
                 <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
@@ -1129,7 +1125,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
               </button>
 
               {/* Question Button 4 */}
-              <button className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl transition-all duration-200 whitespace-nowrap flex-shrink-0 hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white hover:border-transparent">
+              <button className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl transition-all duration-200 whitespace-nowrap flex-shrink-0 hover:bg-[#2563EB] hover:text-white hover:border-transparent">
                 <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
@@ -1137,7 +1133,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
               </button>
 
               {/* Question Button 5 */}
-              <button className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl transition-all duration-200 whitespace-nowrap flex-shrink-0 hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white hover:border-transparent">
+              <button className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl transition-all duration-200 whitespace-nowrap flex-shrink-0 hover:bg-[#2563EB] hover:text-white hover:border-transparent">
                 <svg className="w-4 h-4 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
@@ -1145,7 +1141,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
               </button>
 
               {/* Question Button 6 */}
-              <button className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl transition-all duration-200 whitespace-nowrap flex-shrink-0 hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white hover:border-transparent">
+              <button className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl transition-all duration-200 whitespace-nowrap flex-shrink-0 hover:bg-[#2563EB] hover:text-white hover:border-transparent">
                 <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -1153,7 +1149,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
               </button>
 
               {/* More Button */}
-              <button className="flex items-center justify-center w-10 h-10 bg-white text-gray-900 border border-gray-200 rounded-full transition-all duration-200 flex-shrink-0 hover:bg-gradient-to-r hover:from-blue-600 hover:via-yellow-500 hover:to-red-600 hover:text-white hover:border-transparent">
+              <button className="flex items-center justify-center w-10 h-10 bg-white text-gray-900 border border-gray-200 rounded-full transition-all duration-200 flex-shrink-0 hover:bg-[#2563EB] hover:text-white hover:border-transparent">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
@@ -1162,6 +1158,8 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
           </div>
         </div>
       </div>
+      </>
+      )}
     </>
   );
 };

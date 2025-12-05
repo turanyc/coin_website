@@ -28,7 +28,7 @@ const SignupAlert: React.FC<SignupAlertProps> = ({ onClose, onDontShowAgain }) =
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all duration-300 scale-100">
         {/* Header with Logo */}
-        <div className="bg-gradient-to-r from-blue-600 via-yellow-500 via-red-500 to-green-600 px-6 py-4 relative overflow-hidden">
+        <div className="bg-[#2563EB] px-6 py-4 relative overflow-hidden">
           <div className="absolute inset-0 opacity-20">
             <div 
               className="absolute top-0 left-0 w-full h-full"
@@ -69,7 +69,7 @@ const SignupAlert: React.FC<SignupAlertProps> = ({ onClose, onDontShowAgain }) =
           {/* Features */}
           <div className="space-y-3 mb-6">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div className="w-8 h-8 bg-[#2563EB] rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -81,7 +81,7 @@ const SignupAlert: React.FC<SignupAlertProps> = ({ onClose, onDontShowAgain }) =
             </div>
 
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div className="w-8 h-8 bg-[#2563EB] rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -94,7 +94,7 @@ const SignupAlert: React.FC<SignupAlertProps> = ({ onClose, onDontShowAgain }) =
             </div>
 
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-rose-500 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div className="w-8 h-8 bg-[#2563EB] rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
@@ -106,7 +106,7 @@ const SignupAlert: React.FC<SignupAlertProps> = ({ onClose, onDontShowAgain }) =
             </div>
 
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div className="w-8 h-8 bg-[#2563EB] rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -125,7 +125,7 @@ const SignupAlert: React.FC<SignupAlertProps> = ({ onClose, onDontShowAgain }) =
                 // Kayıt ol sayfasına yönlendir
                 window.location.href = '/register';
               }}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 via-yellow-500 to-red-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+              className="flex-1 px-6 py-3 bg-[#2563EB] hover:bg-[#1E40AF] text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
             >
               Ücretsiz Kayıt Ol
             </button>

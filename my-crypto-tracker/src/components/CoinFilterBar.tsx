@@ -79,7 +79,7 @@ const CoinFilterBar: React.FC<CoinFilterBarProps> = ({
             <div className="relative">
               <button
                 onClick={() => setShowMoreDropdown(!showMoreDropdown)}
-                className="flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-all"
+                className="flex items-center justify-center gap-1 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-[#2563EB] hover:text-white rounded-lg transition-all"
               >
                 <span>Daha Fazla</span>
                 <svg

@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import Image from 'next/image';
 import CoinFilterBar, { NetworkFilter, SortFilter } from '../components/CoinFilterBar';
 import Navbar from '../components/Navbar';
 import MarketStatsBar from '../components/MarketStatsBar';
 import SignupAlert from '../components/SignupAlert';
+import logoImage from '../img/cripto_logo.png';
 
 // Bu bir placeholder/taslak tablodur. 
 // components/CryptoTable.tsx dosyasını oluşturarak bu içeriği oraya taşıyabilirsiniz.
@@ -464,8 +466,8 @@ const HomePage: React.FC = () => {
 
       {/* Toast Notification */}
       {toast.visible && (
-        <div className="fixed bottom-4 right-4 z-50 animate-slide-in-right">
-          <div className="bg-gradient-to-r from-blue-500 via-yellow-500 via-red-500 to-green-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px]">
+        <div className="fixed bottom-12 right-4 z-50 animate-slide-in-right">
+          <div className="bg-[#2563EB] text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px]">
             <div className="flex-shrink-0">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -687,8 +689,8 @@ const HomePage: React.FC = () => {
                               }
                             }}
                             className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${portfolio.includes(coin.id)
-                                ? 'bg-gradient-to-r from-blue-500 via-yellow-500 via-red-500 to-green-500 text-white shadow-lg'
-                                : 'bg-gray-100 hover:bg-gray-200 text-gray-400 hover:text-gray-600'
+                                ? 'bg-[#2563EB] hover:bg-[#1E40AF] text-white shadow-lg'
+                                : 'bg-gray-100 hover:bg-[#2563EB] hover:text-white text-gray-400'
                               }`}
                             title={portfolio.includes(coin.id) ? 'Portföyden çıkar' : 'Portföye ekle'}
                           >
@@ -723,7 +725,7 @@ const HomePage: React.FC = () => {
                     setDisplayedCoins(31); // Sayfalama modunu aktif et
                     setCurrentPage(1);
                   }}
-                  className="px-8 py-4 bg-gradient-to-r from-blue-600 via-yellow-500 to-red-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-base"
+                  className="px-8 py-4 bg-[#2563EB] hover:bg-[#1E40AF] text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-base"
                 >
                   Daha Fazla Göster
                 </button>
@@ -737,7 +739,7 @@ const HomePage: React.FC = () => {
                     disabled={currentPage === 1}
                     className={`px-4 py-2 rounded-xl font-semibold transition-all ${currentPage === 1
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg transform hover:scale-105'
+                        : 'bg-[#2563EB] hover:bg-[#1E40AF] text-white hover:shadow-lg transform hover:scale-105'
                       }`}
                   >
                     ← Önceki
@@ -761,7 +763,7 @@ const HomePage: React.FC = () => {
                           key={pageNum}
                           onClick={() => setCurrentPage(pageNum)}
                           className={`w-12 h-12 rounded-xl font-bold transition-all ${currentPage === pageNum
-                              ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-110'
+                              ? 'bg-[#2563EB] text-white shadow-lg scale-110'
                               : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200 hover:scale-105'
                             }`}
                         >
@@ -776,7 +778,7 @@ const HomePage: React.FC = () => {
                     disabled={currentPage === totalPages}
                     className={`px-4 py-2 rounded-xl font-semibold transition-all ${currentPage === totalPages
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-lg transform hover:scale-105'
+                        : 'bg-[#2563EB] hover:bg-[#1E40AF] text-white hover:shadow-lg transform hover:scale-105'
                       }`}
                   >
                     Sonraki →
@@ -929,7 +931,7 @@ const HomePage: React.FC = () => {
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl font-bold">
               <span className="text-black">En Son Kripto </span>
-              <span className="bg-gradient-to-r from-blue-600 via-yellow-500 to-red-600 bg-clip-text text-transparent">Haberleri</span>
+              <span className="bg-[#2563EB] bg-clip-text text-transparent">Haberleri</span>
             </h2>
           </div>
 
@@ -1025,7 +1027,7 @@ const HomePage: React.FC = () => {
               href="https://cointurk.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block px-8 py-4 bg-gradient-to-r from-blue-600 via-yellow-500 to-red-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-sm"
+              className="inline-block px-8 py-4 bg-[#2563EB] hover:bg-[#1E40AF] text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-sm"
             >
               Daha Fazla Haber Gör
             </a>
@@ -1041,8 +1043,13 @@ const HomePage: React.FC = () => {
             {/* Sol Taraf - Logo ve Açıklama */}
             <div className="lg:col-span-2">
               <div className="flex items-center gap-2 mb-4">
-
-                <span className="text-2xl font-bold text-gray-900 lowercase">cripto</span>
+                <Image 
+                  src={logoImage}
+                  alt="Dijital Market Logo" 
+                  height={64}
+                  width={250}
+                  className="h-16 w-auto object-contain"
+                />
               </div>
               <p className="text-sm text-gray-600 mb-4">
                 Dijital Marketim, kripto piyasasına dair temel bir analiz sağlar. Dijital Marketim; fiyatı, hacmi ve piyasa değerini takip etmenin yanı sıra topluluk büyümesini, açık kaynak kod geliştirmeyi, önemli olayları ve zincir üstü metrikleri takip eder.
