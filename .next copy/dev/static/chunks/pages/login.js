@@ -1,0 +1,12 @@
+__turbopack_load_page_chunks__("/login", [
+  "static/chunks/efa63_next_dist_compiled_20662be7._.js",
+  "static/chunks/efa63_next_dist_shared_lib_18c8d32a._.js",
+  "static/chunks/efa63_next_dist_client_e5f1ee15._.js",
+  "static/chunks/efa63_next_dist_bb0d574e._.js",
+  "static/chunks/efa63_next_fb2da23a._.js",
+  "static/chunks/efa63_react-dom_ae66f6d0._.js",
+  "static/chunks/efa63_abb1b2ba._.js",
+  "static/chunks/[root-of-the-server]__779e9b81._.js",
+  "static/chunks/my-crypto-tracker_src_pages_login_2da965e7._.js",
+  "static/chunks/turbopack-my-crypto-tracker_src_pages_login_46e0520c._.js"
+])

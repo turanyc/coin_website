@@ -1,0 +1,3 @@
+{
+  "/api/coins/[coinId]/details": "pages/api/coins/[coinId]/details.js"
+}
