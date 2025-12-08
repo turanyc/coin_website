@@ -246,33 +246,12 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
                               </svg>
                               <span className="font-medium">Topluluk Hissiyatı</span>
                             </a>
-                            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
+                            <Link href="/chain-ranking" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
                               <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               <span className="font-medium">Zincir Sıralaması</span>
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Blok 3 - NFT */}
-                      <div className="flex-1 border-l border-gray-200 pl-6">
-                        <div className="mb-3">
-                          <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">NFT</h4>
-                          <div className="space-y-1">
-                            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
-                              <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                              </svg>
-                              <span className="font-medium">Genel NFT İstatistikleri</span>
-                            </a>
-                            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
-                              <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                              <span className="font-medium">Yaklaşan Satışlar</span>
-                            </a>
+                            </Link>
                           </div>
                         </div>
                       </div>
@@ -814,7 +793,6 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
             <div className="flex flex-col gap-2">
               <Link href="/" className="px-4 py-3 text-gray-700 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100">Kripto Paralar</Link>
               <a href="#" className="px-4 py-3 text-gray-700 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100">Borsalar</a>
-              <a href="#" className="px-4 py-3 text-gray-700 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100">NFT</a>
               <a href="#" className="px-4 py-3 text-gray-700 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100">Öğren</a>
               <a href="#" className="px-4 py-3 text-gray-700 hover:text-gray-900 font-medium rounded-lg hover:bg-gray-100">Ürünler</a>
               <div className="pt-4 border-t border-gray-200 mt-2">
@@ -923,161 +901,171 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
         <div className="w-full px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             {/* Market Cap Card */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-700">Piyasa Değeri</span>
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <Link href="/market-overview">
+              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-700">Piyasa Değeri</span>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="mb-2">
+                  <div className="text-2xl font-bold text-gray-900">
+                    {marketStats ? `$${(marketStats.marketCap / 1e12).toFixed(2)}T` : '$0.00T'}
+                  </div>
+                  <div className={`text-sm font-semibold flex items-center gap-1 ${marketStats && marketStats.marketCapChange24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {marketStats && marketStats.marketCapChange24h >= 0 ? '▲' : '▼'} {marketStats && marketStats.marketCapChange24h !== undefined ? Math.abs(marketStats.marketCapChange24h).toFixed(2) : '0.00'}%
+                  </div>
+                </div>
+                {/* Mini Chart */}
+                <div className="h-12 w-full mt-2">
+                  <svg viewBox="0 0 100 40" className="w-full h-full">
+                    <polyline
+                      points="0,30 10,25 20,20 30,18 40,15 50,12 60,10 70,8 80,10 90,12 100,10"
+                      fill="none"
+                      stroke="#14b8a6"
+                      strokeWidth="2"
+                    />
                   </svg>
                 </div>
               </div>
-              <div className="mb-2">
-                <div className="text-2xl font-bold text-gray-900">
-                  {marketStats ? `$${(marketStats.marketCap / 1e12).toFixed(2)}T` : '$0.00T'}
-                </div>
-                <div className={`text-sm font-semibold flex items-center gap-1 ${marketStats && marketStats.marketCapChange24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {marketStats && marketStats.marketCapChange24h >= 0 ? '▲' : '▼'} {marketStats && marketStats.marketCapChange24h !== undefined ? Math.abs(marketStats.marketCapChange24h).toFixed(2) : '0.00'}%
-                </div>
-              </div>
-              {/* Mini Chart */}
-              <div className="h-12 w-full mt-2">
-                <svg viewBox="0 0 100 40" className="w-full h-full">
-                  <polyline
-                    points="0,30 10,25 20,20 30,18 40,15 50,12 60,10 70,8 80,10 90,12 100,10"
-                    fill="none"
-                    stroke="#14b8a6"
-                    strokeWidth="2"
-                  />
-                </svg>
-              </div>
-            </div>
+            </Link>
 
             {/* CMC20 Card */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-700">Dijital Market 20</span>
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <Link href="/cmc20">
+              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-700">Dijital Market 20</span>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="mb-2">
+                  <div className="text-2xl font-bold text-gray-900">$193.84</div>
+                  <div className="text-sm font-semibold text-green-600 flex items-center gap-1">
+                    ▲ 0.88%
+                  </div>
+                </div>
+                {/* Mini Chart - Top 20 Coins */}
+                <div className="h-12 w-full mt-2">
+                  <svg viewBox="0 0 100 40" className="w-full h-full">
+                    <polyline
+                      points="0,35 10,30 20,25 30,20 40,18 50,15 60,12 70,10 80,12 90,15 100,12"
+                      fill="none"
+                      stroke="#14b8a6"
+                      strokeWidth="2"
+                    />
                   </svg>
                 </div>
               </div>
-              <div className="mb-2">
-                <div className="text-2xl font-bold text-gray-900">$193.84</div>
-                <div className="text-sm font-semibold text-green-600 flex items-center gap-1">
-                  ▲ 0.88%
-                </div>
-              </div>
-              {/* Mini Chart - Top 20 Coins */}
-              <div className="h-12 w-full mt-2">
-                <svg viewBox="0 0 100 40" className="w-full h-full">
-                  <polyline
-                    points="0,35 10,30 20,25 30,20 40,18 50,15 60,12 70,10 80,12 90,15 100,12"
-                    fill="none"
-                    stroke="#14b8a6"
-                    strokeWidth="2"
-                  />
-                </svg>
-              </div>
-            </div>
+            </Link>
 
             {/* Fear & Greed Card */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-700">Korku ve Açgözlülük</span>
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+            <Link href="/fear-greed">
+              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-700">Korku ve Açgözlülük</span>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="mb-2">
+                  <div className="text-2xl font-bold text-gray-900">{fearGreedIndex}</div>
+                  <div className="text-xs font-semibold" style={{
+                    color: fearGreedIndex <= 25 ? '#ef4444' : fearGreedIndex <= 45 ? '#f59e0b' : fearGreedIndex <= 55 ? '#eab308' : fearGreedIndex <= 75 ? '#10b981' : '#059669'
+                  }}>
+                    {fearGreedClassification === 'Extreme Fear' ? 'Aşırı Korku' :
+                     fearGreedClassification === 'Fear' ? 'Korku' :
+                     fearGreedClassification === 'Neutral' ? 'Nötr' :
+                     fearGreedClassification === 'Greed' ? 'Açgözlülük' :
+                     fearGreedClassification === 'Extreme Greed' ? 'Aşırı Açgözlülük' :
+                     'Nötr'}
+                  </div>
+                </div>
+                {/* Horizontal Bar */}
+                <div className="relative h-8 rounded-full mt-2 overflow-hidden">
+                  <div className="absolute inset-0 flex">
+                    <div className="flex-1 bg-red-500"></div>
+                    <div className="flex-1 bg-orange-500"></div>
+                    <div className="flex-1 bg-yellow-400"></div>
+                    <div className="flex-1 bg-green-500"></div>
+                    <div className="flex-1 bg-emerald-600"></div>
+                  </div>
+                  <div 
+                    className="absolute top-0 bottom-0 w-1 bg-white shadow-lg"
+                    style={{ left: `${fearGreedIndex}%` }}
+                  ></div>
                 </div>
               </div>
-              <div className="mb-2">
-                <div className="text-2xl font-bold text-gray-900">{fearGreedIndex}</div>
-                <div className="text-xs font-semibold" style={{
-                  color: fearGreedIndex <= 25 ? '#ef4444' : fearGreedIndex <= 45 ? '#f59e0b' : fearGreedIndex <= 55 ? '#eab308' : fearGreedIndex <= 75 ? '#10b981' : '#059669'
-                }}>
-                  {fearGreedClassification === 'Extreme Fear' ? 'Aşırı Korku' :
-                   fearGreedClassification === 'Fear' ? 'Korku' :
-                   fearGreedClassification === 'Neutral' ? 'Nötr' :
-                   fearGreedClassification === 'Greed' ? 'Açgözlülük' :
-                   fearGreedClassification === 'Extreme Greed' ? 'Aşırı Açgözlülük' :
-                   'Nötr'}
-                </div>
-              </div>
-              {/* Horizontal Bar */}
-              <div className="relative h-8 rounded-full mt-2 overflow-hidden">
-                <div className="absolute inset-0 flex">
-                  <div className="flex-1 bg-red-500"></div>
-                  <div className="flex-1 bg-orange-500"></div>
-                  <div className="flex-1 bg-yellow-400"></div>
-                  <div className="flex-1 bg-green-500"></div>
-                  <div className="flex-1 bg-emerald-600"></div>
-                </div>
-                <div 
-                  className="absolute top-0 bottom-0 w-1 bg-white shadow-lg"
-                  style={{ left: `${fearGreedIndex}%` }}
-                ></div>
-              </div>
-            </div>
+            </Link>
 
             {/* Altcoin Season Card */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-700">Altcoin Sezonu</span>
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+            <Link href="/altcoin-season">
+              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-700">Altcoin Sezonu</span>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="mb-2">
+                  <div className="text-2xl font-bold text-gray-900">{altcoinSeason}/100</div>
+                </div>
+                {/* Gradient Slider */}
+                <div className="relative mt-2">
+                  <div className="relative h-8 rounded-full overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-yellow-300 via-green-300 to-green-500"></div>
+                    <div 
+                      className="absolute top-0 bottom-0 w-1 bg-white shadow-lg"
+                      style={{ left: `${altcoinSeason}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-xs text-gray-600">Bitcoin</span>
+                    <span className="text-xs text-gray-600">Altcoin</span>
+                  </div>
                 </div>
               </div>
-              <div className="mb-2">
-                <div className="text-2xl font-bold text-gray-900">{altcoinSeason}/100</div>
-              </div>
-              {/* Gradient Slider */}
-              <div className="relative mt-2">
-                <div className="relative h-8 rounded-full overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-yellow-300 via-green-300 to-green-500"></div>
-                  <div 
-                    className="absolute top-0 bottom-0 w-1 bg-white shadow-lg"
-                    style={{ left: `${altcoinSeason}%` }}
-                  ></div>
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span className="text-xs text-gray-600">Bitcoin</span>
-                  <span className="text-xs text-gray-600">Altcoin</span>
-                </div>
-              </div>
-            </div>
+            </Link>
 
             {/* Average Crypto RSI Card */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-700">Ortalama Kripto RSI</span>
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+            <Link href="/rsi">
+              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-700">Ortalama Kripto RSI</span>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="mb-2">
+                  <div className="text-2xl font-bold text-gray-900">{averageRSI.toFixed(2)}</div>
+                </div>
+                {/* Slider */}
+                <div className="relative mt-2">
+                  <div className="relative h-8 rounded-full overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 via-blue-500 via-green-400 via-yellow-400 to-pink-500"></div>
+                    <div 
+                      className="absolute top-0 bottom-0 w-1 bg-white shadow-lg"
+                      style={{ left: `${averageRSI}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-xs text-blue-600">Aşırı Satım</span>
+                    <span className="text-xs text-pink-600">Aşırı Alım</span>
+                  </div>
                 </div>
               </div>
-              <div className="mb-2">
-                <div className="text-2xl font-bold text-gray-900">{averageRSI.toFixed(2)}</div>
-              </div>
-              {/* Slider */}
-              <div className="relative mt-2">
-                <div className="relative h-8 rounded-full overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 via-blue-500 via-green-400 via-yellow-400 to-pink-500"></div>
-                  <div 
-                    className="absolute top-0 bottom-0 w-1 bg-white shadow-lg"
-                    style={{ left: `${averageRSI}%` }}
-                  ></div>
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span className="text-xs text-blue-600">Aşırı Satım</span>
-                  <span className="text-xs text-pink-600">Aşırı Alım</span>
-                </div>
-              </div>
-            </div>
+            </Link>
 
             {/* News Card */}
             <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
@@ -1095,11 +1083,12 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
             </div>
           </div>
         </div>
+      </div>
 
-        {/* AI Suggested Questions */}
-        <div className="bg-white border-b border-gray-200 py-4">
-          <div className="w-full px-4">
-            <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
+      {/* AI Suggested Questions */}
+      <div className="bg-white border-b border-gray-200 py-4">
+        <div className="w-full px-4">
+          <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
               {/* Question Button 1 */}
               <button className="flex items-center gap-2 px-4 py-2.5 bg-white text-gray-900 border border-gray-200 rounded-xl transition-all duration-200 whitespace-nowrap flex-shrink-0 hover:bg-[#2563EB] hover:text-white hover:border-transparent">
                 <svg className="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
@@ -1157,8 +1146,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
             </div>
           </div>
         </div>
-      </div>
-      </>
+        </>
       )}
     </>
   );
