@@ -18,13 +18,13 @@ git push
 **Environment Variables** bölümüne şunları ekle:
 
 ```
-OPENAI_API_KEY=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
+OPENAI_API_KEY=sk-your-api-key-here
 N8N_WEBHOOK_URL=http://localhost:5678/webhook/chat
-POSTGRES_HOST=localhost
+POSTGRES_HOST=your-production-host
 POSTGRES_PORT=5432
-POSTGRES_DATABASE=kripto_tracker_db
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=turanyc
+POSTGRES_DATABASE=your-database-name
+POSTGRES_USER=your-username
+POSTGRES_PASSWORD=your-password
 ```
 
 **ÖNEMLİ:** Her değişken için **Production**, **Preview** ve **Development** seçeneklerini işaretle.

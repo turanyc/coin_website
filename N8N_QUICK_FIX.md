@@ -8,12 +8,12 @@
 
 **Önce:**
 ```env
-# OPENAI_API_KEY=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
+# OPENAI_API_KEY=sk-your-api-key-here
 ```
 
 **Sonra:**
 ```env
-OPENAI_API_KEY=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
+OPENAI_API_KEY=sk-your-api-key-here
 ```
 
 **Sonra Next.js sunucusunu yeniden başlatın:**

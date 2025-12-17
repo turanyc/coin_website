@@ -1,16 +1,7 @@
 // pages/api/coins.ts
 
 import { NextApiRequest, NextApiResponse } from 'next';
-import { Pool } from 'pg'; 
-
-// 🚨 Bağlantı bilgileriniz
-const pool = new Pool({
-  user: process.env.POSTGRES_USER,
-  host: process.env.POSTGRES_HOST,
-  database: process.env.POSTGRES_DATABASE,
-  password: process.env.POSTGRES_PASSWORD,
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-});
+import pool from '../../lib/db';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
