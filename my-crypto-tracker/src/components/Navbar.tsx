@@ -417,12 +417,12 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
                         <div className="mb-3">
                           <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Merkezi Olmayan Borsalar</h4>
                           <div className="space-y-1">
-                            <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
+                            <Link href="/dex-spot" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
                               <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="currentColor" viewBox="0 0 20 20">
                                 <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
                               </svg>
                               <span className="font-medium">Spot</span>
-                            </a>
+                            </Link>
                             <a href="#" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-[#2563EB] rounded-lg transition-all group" onClick={() => setOpenDropdown(null)}>
                               <svg className="w-5 h-5 text-gray-400 group-hover:text-[#2563EB]" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
