@@ -109,15 +109,20 @@ export default async function handler(
         console.log('📤 Gönderilen veri:', JSON.stringify(requestBody).substring(0, 300));
         
         // n8n webhook'una gönder
+        // Timeout: 20 saniye (n8n yanıt vermezse OpenAI'ye geç)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+        
         const n8nResponse_fetch = await fetch(n8nWebhookUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(requestBody),
-          // Timeout: 15 saniye (n8n yanıt vermezse OpenAI'ye geç)
-          signal: AbortSignal.timeout(15000),
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
 
         console.log('📥 n8n yanıt durumu:', n8nResponse_fetch.status, n8nResponse_fetch.statusText);
 
@@ -171,9 +176,11 @@ export default async function handler(
         
         // Timeout hatası mı kontrol et
         if (errorMsg.includes('aborted') || errorMsg.includes('timeout')) {
-          console.error('⏱️ n8n webhook timeout - n8n çok yavaş yanıt veriyor veya çalışmıyor');
-        } else if (errorMsg.includes('fetch') || errorMsg.includes('ECONNREFUSED')) {
+          console.error('⏱️ n8n webhook timeout (20s) - n8n çok yavaş yanıt veriyor veya çalışmıyor');
+          console.error('💡 İpucu: n8n workflow\'unu kontrol edin ve "Listen for test event" butonuna basın');
+        } else if (errorMsg.includes('fetch') || errorMsg.includes('ECONNREFUSED') || errorMsg.includes('ENOTFOUND')) {
           console.error('🔌 n8n webhook bağlantı hatası - n8n çalışmıyor olabilir');
+          console.error(`💡 İpucu: ${n8nWebhookUrl} adresine erişilemiyor. n8n\'in çalıştığından emin olun: http://localhost:5678`);
         }
       }
     }

@@ -1,5 +1,0 @@
-{
-  "/currencies/[coinId]": [
-    "static/chunks/pages/currencies/[coinId].js"
-  ]
-}

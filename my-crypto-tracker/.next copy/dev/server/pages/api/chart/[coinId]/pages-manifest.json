@@ -1,3 +1,0 @@
-{
-  "/api/chart/[coinId]": "pages/api/chart/[coinId].js"
-}
