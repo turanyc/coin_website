@@ -19,12 +19,9 @@ const nextConfig: NextConfig = {
   // Production optimizations
   compress: true,
   poweredByHeader: false,
-  // TypeScript ve ESLint hatalarını build'de kontrol et
+  // TypeScript hatalarını build'de kontrol et
   typescript: {
     ignoreBuildErrors: false,
-  },
-  eslint: {
-    ignoreDuringBuilds: false,
   },
 };
 
