@@ -24,7 +24,7 @@ const PortfolioPage: React.FC = () => {
   const router = useRouter();
   const [portfolio, setPortfolio] = useState<PortfolioCoin[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ id?: number; user_id?: number; email?: string; name?: string } | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
