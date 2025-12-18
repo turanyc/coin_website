@@ -41,8 +41,13 @@ const AIChatPage: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Quick Insights verilerini çek
+  // Quick Insights verilerini çek - sadece client-side'da
   useEffect(() => {
+    // Server-side rendering sırasında çalışmaması için kontrol
+    if (typeof window === 'undefined' || !isMounted) {
+      return;
+    }
+
     const fetchQuickInsights = async () => {
       try {
         // Global market data
@@ -94,10 +99,15 @@ const AIChatPage: React.FC = () => {
     fetchQuickInsights();
     const interval = setInterval(fetchQuickInsights, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isMounted]);
 
-  // Market verilerini çek
+  // Market verilerini çek - sadece client-side'da
   useEffect(() => {
+    // Server-side rendering sırasında çalışmaması için kontrol
+    if (typeof window === 'undefined' || !isMounted) {
+      return;
+    }
+
     const fetchMarketData = async () => {
       try {
         const response = await fetch(
@@ -172,7 +182,7 @@ const AIChatPage: React.FC = () => {
         clearInterval(interval);
       }
     };
-  }, []);
+  }, [isMounted]);
 
   // Client-side only initialization
   useEffect(() => {

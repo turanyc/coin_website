@@ -30,10 +30,17 @@ export default function LoginPage() {
 
       console.log('Giriş başarılı:', data);
 
-      // --- YENİ EKLENECEK KISIM BAŞLANGIÇ ---
-      // Kullanıcı bilgilerini tarayıcı hafızasına kaydediyoruz
-      localStorage.setItem('currentUser', JSON.stringify(data.user));
-      // --- YENİ EKLENECEK KISIM BİTİŞ ---
+      // Kullanıcı bilgilerini tarayıcı hafızasına kaydet (profil fotoğrafı dahil)
+      const userData = {
+        id: data.user.id,
+        user_id: data.user.user_id || data.user.id,
+        email: data.user.email,
+        name: data.user.name || data.user.full_name,
+        full_name: data.user.full_name || data.user.name,
+        profile_picture_url: data.user.profile_picture_url || null,
+        is_verified: data.user.is_verified || false
+      };
+      localStorage.setItem('currentUser', JSON.stringify(userData));
       
       // Giriş başarılıysa ana sayfaya yönlendir
       router.push('/'); 

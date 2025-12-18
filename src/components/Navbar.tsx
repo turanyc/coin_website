@@ -47,19 +47,8 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
   const [watchlistTab, setWatchlistTab] = useState<'coins' | 'dexscan'>('coins');
   const [watchlistPopupTimeout, setWatchlistPopupTimeout] = useState<NodeJS.Timeout | null>(null);
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window !== 'undefined') {
-      const storedUser = localStorage.getItem('currentUser');
-      if (storedUser) {
-        try {
-          return JSON.parse(storedUser);
-        } catch {
-          return null;
-        }
-      }
-    }
-    return null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const { language, setLanguage, t } = useLanguage();
   const router = useRouter();
 
@@ -67,7 +56,12 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
   const handleLogout = () => {
     localStorage.removeItem('currentUser'); // Hafızadan sil
     setUser(null); // State'i temizle
-    router.push('/login'); // Giriş sayfasına at
+    // Çıkış yapıldı event'i gönder
+    window.dispatchEvent(new CustomEvent('userLoggedOut'));
+    // Çıkış yaptıktan sonra ana sayfaya yönlendir (login sayfasına değil)
+    if (router.pathname !== '/') {
+      router.push('/');
+    }
   };
 
   const languages = [
@@ -93,17 +87,53 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Client-side mount kontrolü ve kullanıcı bilgilerini yükle
   useEffect(() => {
+    setIsMounted(true);
+    
+    // LocalStorage'dan kullanıcı bilgilerini yükle
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem('currentUser');
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch {
+          setUser(null);
+        }
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
+
     const handleOpenAuthModal = (event: CustomEvent) => {
       setAuthModalMode(event.detail?.mode || 'login');
       setShowAuthModal(true);
     };
 
+    const handleUserLogin = (event: CustomEvent) => {
+      setUser(event.detail);
+    };
+
+    const handleUserUpdate = (event: CustomEvent) => {
+      setUser(event.detail);
+      // LocalStorage'ı da güncelle
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('currentUser', JSON.stringify(event.detail));
+      }
+    };
+
     window.addEventListener('openAuthModal', handleOpenAuthModal as EventListener);
+    window.addEventListener('userLoggedIn', handleUserLogin as EventListener);
+    window.addEventListener('userUpdated', handleUserUpdate as EventListener);
+    
     return () => {
       window.removeEventListener('openAuthModal', handleOpenAuthModal as EventListener);
+      window.removeEventListener('userLoggedIn', handleUserLogin as EventListener);
+      window.removeEventListener('userUpdated', handleUserUpdate as EventListener);
     };
-  }, []);
+  }, [isMounted]);
 
   useEffect(() => {
     const fetchWatchlistCoins = async () => {
@@ -673,18 +703,128 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
             </Link>
 
             {/* Kullanıcı durumuna göre dinamik butonlar */}
-            {user ? (
-              <div className="flex items-center gap-4">
-                <div className="text-right hidden sm:block">
-                  <p className="text-xs text-gray-600">{t('common.welcome')},</p>
-                  <p className="text-sm font-bold text-gray-900">{user.name || user.full_name || user.email}</p>
-                </div>
-                <button 
-                  onClick={handleLogout}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition"
+            {isMounted && user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setOpenDropdown(openDropdown === 'user-menu' ? null : 'user-menu')}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  {t('common.logout')}
+                  {/* Profil Fotoğrafı */}
+                  {user.profile_picture_url ? (
+                    <Image
+                      src={user.profile_picture_url}
+                      alt={user.name || user.full_name || user.email}
+                      width={32}
+                      height={32}
+                      className="rounded-full object-cover border-2 border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center border-2 border-gray-200">
+                      <span className="text-sm text-gray-600 font-medium">
+                        {(user.name || user.full_name || user.email || 'U').charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <div className="text-left hidden sm:block">
+                    <p className="text-xs text-gray-600">{t('common.welcome')},</p>
+                    <p className="text-sm font-bold text-gray-900">{user.name || user.full_name || user.email}</p>
+                  </div>
+                  <svg className={`w-4 h-4 text-gray-600 transition-transform ${openDropdown === 'user-menu' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
+
+                {/* Kullanıcı Dropdown Menü */}
+                {openDropdown === 'user-menu' && (
+                  <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-2xl py-2 z-50 border border-gray-200 min-w-[200px]">
+                    {/* Profil Fotoğrafı ve İsim */}
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <div className="flex items-center gap-3">
+                        {user.profile_picture_url ? (
+                          <Image
+                            src={user.profile_picture_url}
+                            alt={user.name || user.full_name || user.email}
+                            width={48}
+                            height={48}
+                            className="rounded-full object-cover border-2 border-gray-200"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center border-2 border-gray-200">
+                            <span className="text-lg text-gray-600 font-medium">
+                              {(user.name || user.full_name || user.email || 'U').charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">{user.name || user.full_name || user.email}</p>
+                          <p className="text-xs text-gray-500">{user.email}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Menü Öğeleri */}
+                    <div className="py-1">
+                      <Link
+                        href="/profilim"
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={() => setOpenDropdown(null)}
+                      >
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span>Profilim</span>
+                      </Link>
+
+                      {/* Dil Seçimi */}
+                      <div className="px-4 py-2">
+                        <div className="text-xs font-semibold text-gray-500 uppercase mb-2">{t('common.language')}</div>
+                        <div className="space-y-1">
+                          {languages.slice(0, 5).map((lang) => (
+                            <button
+                              key={lang.code}
+                              onClick={() => {
+                                const langCode = lang.code as 'tr' | 'en' | 'es' | 'zh' | 'ar' | 'fr' | 'de' | 'ja' | 'pt' | 'ru' | 'hi';
+                                setLanguage(langCode);
+                                setOpenDropdown(null);
+                                setTimeout(() => {
+                                  window.location.reload();
+                                }, 100);
+                              }}
+                              className={`w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors flex items-center gap-2 ${
+                                language === lang.code
+                                  ? 'bg-blue-50 text-blue-600 font-semibold'
+                                  : 'text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              <span>{lang.flag}</span>
+                              <span>{lang.name}</span>
+                              {language === lang.code && (
+                                <svg className="w-4 h-4 ml-auto text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="border-t border-gray-200 my-1"></div>
+
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setOpenDropdown(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        <span>Çıkış Yap</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <button
@@ -984,7 +1124,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
                   </svg>
                   Portföy
                 </button>
-                {user ? (
+                {isMounted && user ? (
                   <>
                     <div className="w-full px-4 py-3 text-center mb-2">
                       <p className="text-xs text-gray-500">{t('common.welcome')},</p>

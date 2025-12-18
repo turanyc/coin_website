@@ -23,12 +23,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 3. Yeni kullanıcıyı veritabanına ekle
     const newUser = await pool.query(
-      'INSERT INTO users (email, password_hash, full_name) VALUES ($1, $2, $3) RETURNING id, email, full_name',
+      'INSERT INTO users (email, password_hash, full_name) VALUES ($1, $2, $3) RETURNING id, email, full_name, profile_picture_url, is_verified',
       [email, passwordHash, fullName]
     );
 
-    // Başarılı cevap dön
-    res.status(201).json({ message: 'Kayıt başarılı!', user: newUser.rows[0] });
+    const user = newUser.rows[0];
+    
+    // Başarılı cevap dön - tüm kullanıcı bilgilerini döndür
+    res.status(201).json({ 
+      message: 'Kayıt başarılı!', 
+      user: {
+        id: user.id,
+        user_id: user.id,
+        email: user.email,
+        name: user.full_name,
+        full_name: user.full_name,
+        profile_picture_url: user.profile_picture_url || null,
+        is_verified: user.is_verified || false
+      }
+    });
 
   } catch (error) {
     console.error('Register hatası:', error);

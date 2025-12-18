@@ -33,9 +33,21 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
         const data = await response.json();
 
         if (response.ok) {
-          localStorage.setItem('currentUser', JSON.stringify(data.user));
+          // Kullanıcı bilgilerini tam olarak kaydet (profil fotoğrafı dahil)
+          const userData = {
+            id: data.user.id,
+            user_id: data.user.user_id || data.user.id,
+            email: data.user.email,
+            name: data.user.name || data.user.full_name,
+            full_name: data.user.full_name || data.user.name,
+            profile_picture_url: data.user.profile_picture_url || null,
+            is_verified: data.user.is_verified || false
+          };
+          localStorage.setItem('currentUser', JSON.stringify(userData));
+          // Kullanıcı giriş yaptı event'i gönder
+          window.dispatchEvent(new CustomEvent('userLoggedIn', { detail: userData }));
           onClose();
-          window.location.reload();
+          // Sayfayı reload etmek yerine event ile state güncelle
         } else {
           setError(data.message || 'Giriş başarısız');
         }
@@ -49,6 +61,21 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
         const data = await response.json();
 
         if (response.ok) {
+          // Kayıt başarılı - kullanıcı bilgilerini kaydet (eğer varsa)
+          if (data.user) {
+            const userData = {
+              id: data.user.id,
+              user_id: data.user.user_id || data.user.id,
+              email: data.user.email,
+              name: data.user.name || data.user.full_name,
+              full_name: data.user.full_name || data.user.name,
+              profile_picture_url: data.user.profile_picture_url || null,
+              is_verified: data.user.is_verified || false
+            };
+            localStorage.setItem('currentUser', JSON.stringify(userData));
+            window.dispatchEvent(new CustomEvent('userLoggedIn', { detail: userData }));
+          }
+          
           setMode('login');
           setError('');
           setEmail('');

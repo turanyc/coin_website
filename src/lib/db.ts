@@ -9,7 +9,8 @@ const pool = new Pool({
   // Connection pool ayarları
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000, // 10 saniye
+  statement_timeout: 30000, // 30 saniye query timeout
 });
 
 export default pool;

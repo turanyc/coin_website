@@ -27,8 +27,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ message: 'E-posta veya şifre hatalı.' });
     }
 
-    // 3. Giriş başarılı
-    res.status(200).json({ message: 'Giriş başarılı!', user: { id: user.id, email: user.email, name: user.full_name } });
+    // 3. Giriş başarılı - Tüm kullanıcı bilgilerini döndür (profil fotoğrafı dahil)
+    res.status(200).json({ 
+      message: 'Giriş başarılı!', 
+      user: { 
+        id: user.id, 
+        user_id: user.id, // Bazı yerlerde user_id kullanılıyor
+        email: user.email, 
+        name: user.full_name,
+        full_name: user.full_name,
+        profile_picture_url: user.profile_picture_url || null,
+        is_verified: user.is_verified || false
+      } 
+    });
 
   } catch (error) {
     console.error('Login hatası:', error);

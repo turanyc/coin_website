@@ -34,24 +34,113 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.status(500).json({ error: 'Postlar yüklenirken hata oluştu' });
     }
   } else if (req.method === 'POST') {
+    let responseSent = false;
+    
     try {
       const { user_id, content_text, image_url, post_type } = req.body;
 
+      console.log('Post create request:', { user_id, content_length: content_text?.length, post_type });
+
       if (!user_id || !content_text) {
+        responseSent = true;
         return res.status(400).json({ error: 'user_id ve content_text gerekli' });
       }
 
+      // İçerik boş mu kontrol et
+      if (!content_text.trim()) {
+        responseSent = true;
+        return res.status(400).json({ error: 'Post içeriği boş olamaz' });
+      }
+
+      // Kullanıcının var olup olmadığını kontrol et
+      console.log('Checking user existence...');
+      const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [user_id]);
+      if (userCheck.rows.length === 0) {
+        responseSent = true;
+        return res.status(404).json({ error: 'Kullanıcı bulunamadı' });
+      }
+
+      // Post'u ekle - herhangi bir kısıtlama yok, istediği kadar post paylaşabilir
+      // created_at ve sayılar için DEFAULT değerleri kullan
+      console.log('Inserting post...');
       const result = await pool.query(
-        `INSERT INTO posts (user_id, content_text, image_url, post_type)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO posts (user_id, content_text, image_url, post_type, is_public)
+         VALUES ($1, $2, $3, $4, TRUE)
          RETURNING *`,
-        [user_id, content_text, image_url || null, post_type || 'text']
+        [user_id, content_text.trim(), image_url || null, post_type || 'text']
       );
 
-      res.status(201).json({ post: result.rows[0] });
-    } catch (error) {
+      console.log('Post inserted, ID:', result.rows[0]?.id);
+
+      // Kullanıcı bilgilerini de ekle
+      const userResult = await pool.query(
+        'SELECT id, full_name, email, profile_picture_url, is_verified FROM users WHERE id = $1',
+        [user_id]
+      );
+
+      const post = result.rows[0];
+      const user = userResult.rows[0];
+
+      console.log('Sending success response...');
+      responseSent = true;
+      
+      const responseData = {
+        post: {
+          ...post,
+          user_name: user?.full_name || user?.email?.split('@')[0] || 'Kullanıcı',
+          user_email: user?.email,
+          profile_picture_url: user?.profile_picture_url,
+          is_verified: user?.is_verified || false,
+        },
+      };
+      
+      console.log('Response data prepared, sending...');
+      res.status(201).json(responseData);
+      console.log('Response sent successfully');
+    } catch (error: any) {
       console.error('Post create error:', error);
-      res.status(500).json({ error: 'Post oluşturulurken hata oluştu' });
+      
+      // Response zaten gönderilmişse tekrar gönderme
+      if (responseSent) {
+        console.error('Response already sent, cannot send error response');
+        return;
+      }
+      
+      // Veritabanı hatalarını daha detaylı göster
+      if (error.code === '23505') {
+        // Unique constraint violation
+        responseSent = true;
+        return res.status(400).json({ error: 'Bu post zaten mevcut' });
+      } else if (error.code === '23503') {
+        // Foreign key violation
+        responseSent = true;
+        return res.status(400).json({ error: 'Geçersiz kullanıcı ID' });
+      } else if (error.code === '23502') {
+        // Not null violation
+        responseSent = true;
+        return res.status(400).json({ error: 'Gerekli alanlar eksik' });
+      }
+      
+      // Daha açıklayıcı hata mesajı
+      const errorMessage = error.message || 'Post oluşturulurken hata oluştu';
+      console.error('Post create error details:', {
+        code: error.code,
+        message: error.message,
+        detail: error.detail,
+        constraint: error.constraint
+      });
+      
+      responseSent = true;
+      res.status(500).json({ 
+        error: errorMessage,
+        message: errorMessage,
+        details: process.env.NODE_ENV === 'development' ? {
+          code: error.code,
+          message: error.message,
+          detail: error.detail,
+          constraint: error.constraint
+        } : undefined
+      });
     }
   } else {
     res.status(405).json({ error: 'Method not allowed' });

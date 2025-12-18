@@ -80,28 +80,120 @@ const ToplulukPage: React.FC = () => {
   const [isPosting, setIsPosting] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [showPostModal, setShowPostModal] = useState(false);
+  const [pendingPostAction, setPendingPostAction] = useState(false);
+  const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
+  const [showComments, setShowComments] = useState<Set<number>>(new Set());
+  const [comments, setComments] = useState<Record<number, any[]>>({});
+  const [commentText, setCommentText] = useState<Record<number, string>>({});
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Client-side mount kontrolü
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
+    if (!isMounted) return;
+    
     fetchData();
     fetchPosts();
+    
+    // LocalStorage'dan kullanıcı bilgilerini yükle
     if (typeof window !== 'undefined') {
       const storedUser = localStorage.getItem('currentUser');
       if (storedUser) {
         try {
-          setUser(JSON.parse(storedUser));
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
         } catch {
           setUser(null);
         }
       }
     }
-  }, []);
+
+    // Kullanıcı giriş yaptığında state'i güncelle
+    const handleUserLogin = (event: CustomEvent) => {
+      setUser(event.detail);
+      // Eğer Post Now butonuna tıklanmışsa, modal'ı aç
+      if (pendingPostAction) {
+        setShowPostModal(true);
+        setPendingPostAction(false);
+      }
+    };
+
+    // Kullanıcı çıkış yaptığında state'i temizle
+    const handleUserLogout = () => {
+      setUser(null);
+      setShowPostModal(false);
+      setPostContent('');
+      setPostImage(null);
+      setPostImagePreview(null);
+    };
+
+    window.addEventListener('userLoggedIn', handleUserLogin as EventListener);
+    window.addEventListener('userLoggedOut', handleUserLogout);
+
+    return () => {
+      window.removeEventListener('userLoggedIn', handleUserLogin as EventListener);
+      window.removeEventListener('userLoggedOut', handleUserLogout);
+    };
+  }, [pendingPostAction, isMounted]);
+
+  // Kullanıcı değiştiğinde beğenileri yükle
+  useEffect(() => {
+    if (user && posts.length > 0) {
+      const loadLikes = async () => {
+        const likedSet = new Set<number>();
+        await Promise.all(
+          posts.map(async (post: Post) => {
+            try {
+              const likeRes = await fetch(`/api/community/likes?post_id=${post.id}&user_id=${user.id || user.user_id}`);
+              const likeData = await likeRes.json();
+              if (likeData.liked) {
+                likedSet.add(post.id);
+              }
+            } catch (e) {
+              // Hata durumunda sessizce devam et
+            }
+          })
+        );
+        setLikedPosts(likedSet);
+      };
+      loadLikes();
+    }
+  }, [user, posts]);
 
   const fetchPosts = async () => {
     try {
       const response = await fetch('/api/community/posts');
       const data = await response.json();
-      if (data.posts) {
-        setPosts(data.posts);
+      if (data.posts && Array.isArray(data.posts)) {
+        // Postları en yeni önce sırala (zaten API'den geliyor ama emin olmak için)
+        const sortedPosts = [...data.posts].sort((a, b) => {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+        setPosts(sortedPosts);
+        
+        // Kullanıcının beğendiği postları kontrol et
+        if (user && (user.id || user.user_id)) {
+          const likedSet = new Set<number>();
+          await Promise.all(
+            sortedPosts.map(async (post: Post) => {
+              try {
+                const likeRes = await fetch(`/api/community/likes?post_id=${post.id}&user_id=${user.id || user.user_id}`);
+                if (likeRes.ok) {
+                  const likeData = await likeRes.json();
+                  if (likeData.liked) {
+                    likedSet.add(post.id);
+                  }
+                }
+              } catch (e) {
+                // Hata durumunda sessizce devam et
+              }
+            })
+          );
+          setLikedPosts(likedSet);
+        }
       }
     } catch (error) {
       console.error('Posts fetch error:', error);
@@ -189,9 +281,14 @@ const ToplulukPage: React.FC = () => {
 
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !postContent.trim()) return;
+    if (!user || !postContent.trim() || isPosting) return;
 
     setIsPosting(true);
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      abortController.abort();
+    }, 30000); // 30 saniye timeout
+    
     try {
       let imageUrl = null;
       
@@ -205,28 +302,92 @@ const ToplulukPage: React.FC = () => {
         imageUrl = postImagePreview;
       }
 
-      const response = await fetch('/api/community/posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: user.id,
-          content_text: postContent,
-          image_url: imageUrl,
-          post_type: postImage ? 'image' : 'text',
-        }),
-      });
+      const userId = user.id || user.user_id;
+      if (!userId) {
+        clearTimeout(timeoutId);
+        alert('Kullanıcı bilgisi bulunamadı. Lütfen tekrar giriş yapın.');
+        setIsPosting(false);
+        return;
+      }
 
-      if (response.ok) {
+      console.log('Sending post request...', { userId, contentLength: postContent.length });
+      
+      let response: Response;
+      try {
+        response = await fetch('/api/community/posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: userId,
+            content_text: postContent,
+            image_url: imageUrl,
+            post_type: postImage ? 'image' : 'text',
+          }),
+          signal: abortController.signal,
+        });
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        console.error('Fetch error:', fetchError);
+        throw fetchError; // Re-throw to be caught by outer catch
+      }
+
+      clearTimeout(timeoutId);
+      console.log('Response received:', response.status, response.statusText);
+
+      // Response'u parse et
+      let responseData: any;
+      try {
+        const responseText = await response.text();
+        console.log('Response text:', responseText.substring(0, 200));
+        responseData = responseText ? JSON.parse(responseText) : null;
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError);
+        throw new Error('Sunucudan geçersiz yanıt alındı');
+      }
+
+      if (response.ok && responseData) {
+        console.log('Post başarıyla paylaşıldı:', responseData);
+        
+        // ÖNCE modal'ı kapat ve state'i temizle
+        setIsPosting(false);
+        setShowPostModal(false);
         setPostContent('');
         setPostImage(null);
         setPostImagePreview(null);
-        setShowPostModal(false);
-        fetchPosts();
+        
+        // Sonra post listesini güncelle (await etmeden, arka planda çalışsın)
+        fetchPosts().catch(err => {
+          console.error('fetchPosts error:', err);
+          // Hata olsa bile kullanıcıya gösterilmez, sadece log
+        });
+      } else {
+        // Hata durumu
+        const errorMessage = responseData?.error || responseData?.message || `Hata: ${response.status} ${response.statusText}`;
+        console.error('Post paylaşım hatası:', errorMessage, responseData);
+        alert(errorMessage);
+        setIsPosting(false);
       }
-    } catch (error) {
+    } catch (error: any) {
+      clearTimeout(timeoutId);
       console.error('Post create error:', error);
-    } finally {
+      
+      // Her durumda isPosting'i false yap
       setIsPosting(false);
+      
+      let errorMessage = 'Post paylaşılırken bir hata oluştu. Lütfen tekrar deneyin.';
+      
+      if (error?.name === 'AbortError') {
+        errorMessage = 'İstek zaman aşımına uğradı. Lütfen tekrar deneyin.';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.name === 'TypeError' && error?.message?.includes('fetch')) {
+        errorMessage = 'Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edin.';
+      }
+      
+      alert(errorMessage);
+      
+      // Hata durumunda da modal'ı kapat (kullanıcı tekrar deneyebilsin)
+      // setShowPostModal(false); // Bu satırı yorum satırı yapıyoruz, kullanıcı hatayı görsün
     }
   };
 
@@ -375,19 +536,116 @@ const ToplulukPage: React.FC = () => {
                           </div>
                         )}
                         <div className="flex items-center gap-6 mt-4 pt-4 border-t border-gray-100">
-                          <button className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <button
+                            onClick={async () => {
+                              if (!user) {
+                                const event = new CustomEvent('openAuthModal', { detail: { mode: 'login' } });
+                                window.dispatchEvent(event);
+                                return;
+                              }
+                              const isLiked = likedPosts.has(post.id);
+                              try {
+                                const response = await fetch('/api/community/likes', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    post_id: post.id,
+                                    user_id: user.id || user.user_id,
+                                  }),
+                                });
+                                if (response.ok) {
+                                  const newLikedSet = new Set(likedPosts);
+                                  if (isLiked) {
+                                    newLikedSet.delete(post.id);
+                                  } else {
+                                    newLikedSet.add(post.id);
+                                  }
+                                  setLikedPosts(newLikedSet);
+                                  // Post listesini güncelle
+                                  setPosts(posts.map(p => 
+                                    p.id === post.id 
+                                      ? { ...p, like_count: isLiked ? p.like_count - 1 : p.like_count + 1 }
+                                      : p
+                                  ));
+                                }
+                              } catch (error) {
+                                console.error('Like error:', error);
+                              }
+                            }}
+                            className={`flex items-center gap-2 transition-colors ${
+                              likedPosts.has(post.id)
+                                ? 'text-red-600 hover:text-red-700'
+                                : 'text-gray-600 hover:text-red-600'
+                            }`}
+                          >
+                            <svg className="w-5 h-5" fill={likedPosts.has(post.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                             </svg>
                             <span className="text-sm">{post.like_count}</span>
                           </button>
-                          <button className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors">
+                          <button
+                            onClick={async () => {
+                              if (!user) {
+                                const event = new CustomEvent('openAuthModal', { detail: { mode: 'login' } });
+                                window.dispatchEvent(event);
+                                return;
+                              }
+                              const isShowing = showComments.has(post.id);
+                              if (!isShowing) {
+                                // Yorumları yükle
+                                try {
+                                  const response = await fetch(`/api/community/comments?post_id=${post.id}`);
+                                  const data = await response.json();
+                                  setComments({ ...comments, [post.id]: data.comments || [] });
+                                } catch (error) {
+                                  console.error('Comments fetch error:', error);
+                                }
+                              }
+                              const newShowComments = new Set(showComments);
+                              if (isShowing) {
+                                newShowComments.delete(post.id);
+                              } else {
+                                newShowComments.add(post.id);
+                              }
+                              setShowComments(newShowComments);
+                            }}
+                            className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors"
+                          >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                             </svg>
                             <span className="text-sm">{post.comment_count}</span>
                           </button>
-                          <button className="flex items-center gap-2 text-gray-600 hover:text-green-600 transition-colors">
+                          <button
+                            onClick={async () => {
+                              if (!user) {
+                                const event = new CustomEvent('openAuthModal', { detail: { mode: 'login' } });
+                                window.dispatchEvent(event);
+                                return;
+                              }
+                              try {
+                                const response = await fetch('/api/community/shares', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    post_id: post.id,
+                                    user_id: user.id || user.user_id,
+                                  }),
+                                });
+                                if (response.ok) {
+                                  setPosts(posts.map(p => 
+                                    p.id === post.id 
+                                      ? { ...p, share_count: p.share_count + 1 }
+                                      : p
+                                  ));
+                                  alert('Paylaşım sayısı güncellendi!');
+                                }
+                              } catch (error) {
+                                console.error('Share error:', error);
+                              }
+                            }}
+                            className="flex items-center gap-2 text-gray-600 hover:text-green-600 transition-colors"
+                          >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                             </svg>
@@ -397,6 +655,115 @@ const ToplulukPage: React.FC = () => {
                             {post.view_count.toLocaleString()} görüntüleme
                           </div>
                         </div>
+
+                        {/* Yorumlar Bölümü */}
+                        {showComments.has(post.id) && (
+                          <div className="mt-4 pt-4 border-t border-gray-100">
+                            <div className="space-y-3 mb-4">
+                              {comments[post.id]?.map((comment) => (
+                                <div key={comment.id} className="flex gap-3">
+                                  {comment.profile_picture_url ? (
+                                    <Image
+                                      src={comment.profile_picture_url}
+                                      alt={comment.user_name}
+                                      width={32}
+                                      height={32}
+                                      className="rounded-full"
+                                    />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
+                                      <span className="text-xs text-gray-600 font-medium">
+                                        {comment.user_name.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-sm font-semibold text-gray-900">{comment.user_name}</span>
+                                      <span className="text-xs text-gray-500">{formatDate(comment.created_at)}</span>
+                                    </div>
+                                    <p className="text-sm text-gray-700">{comment.content_text}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            {user && (
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={commentText[post.id] || ''}
+                                  onChange={(e) => setCommentText({ ...commentText, [post.id]: e.target.value })}
+                                  placeholder="Yorum yazın..."
+                                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  onKeyPress={async (e) => {
+                                    if (e.key === 'Enter' && commentText[post.id]?.trim()) {
+                                      try {
+                                        const response = await fetch('/api/community/comments', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            post_id: post.id,
+                                            user_id: user.id || user.user_id,
+                                            content_text: commentText[post.id],
+                                          }),
+                                        });
+                                        if (response.ok) {
+                                          const data = await response.json();
+                                          setComments({
+                                            ...comments,
+                                            [post.id]: [...(comments[post.id] || []), data.comment],
+                                          });
+                                          setCommentText({ ...commentText, [post.id]: '' });
+                                          setPosts(posts.map(p => 
+                                            p.id === post.id 
+                                              ? { ...p, comment_count: p.comment_count + 1 }
+                                              : p
+                                          ));
+                                        }
+                                      } catch (error) {
+                                        console.error('Comment error:', error);
+                                      }
+                                    }
+                                  }}
+                                />
+                                <button
+                                  onClick={async () => {
+                                    if (!commentText[post.id]?.trim()) return;
+                                    try {
+                                      const response = await fetch('/api/community/comments', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                          post_id: post.id,
+                                          user_id: user.id || user.user_id,
+                                          content_text: commentText[post.id],
+                                        }),
+                                      });
+                                      if (response.ok) {
+                                        const data = await response.json();
+                                        setComments({
+                                          ...comments,
+                                          [post.id]: [...(comments[post.id] || []), data.comment],
+                                        });
+                                        setCommentText({ ...commentText, [post.id]: '' });
+                                        setPosts(posts.map(p => 
+                                          p.id === post.id 
+                                            ? { ...p, comment_count: p.comment_count + 1 }
+                                            : p
+                                        ));
+                                      }
+                                    } catch (error) {
+                                      console.error('Comment error:', error);
+                                    }
+                                  }}
+                                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-colors"
+                                >
+                                  Gönder
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -561,28 +928,42 @@ const ToplulukPage: React.FC = () => {
         </aside>
       </div>
 
-      {/* Floating Post Now Button */}
-      <button
-        onClick={() => {
-          if (user) {
-            setShowPostModal(true);
-          } else {
-            // Giriş modalını aç (Navbar'dan erişilebilir)
-            const event = new CustomEvent('openAuthModal', { detail: { mode: 'login' } });
-            window.dispatchEvent(event);
-          }
-        }}
-        className="fixed bottom-8 right-8 bg-[#2563EB] hover:bg-[#1E40AF] text-white rounded-full shadow-2xl flex items-center gap-2 px-6 py-3 transition-all hover:scale-105 z-50"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-        <span className="font-semibold">Post now</span>
-      </button>
+      {/* Floating Post Now Button - Sadece client-side'da göster */}
+      {isMounted && (
+        <button
+          onClick={() => {
+            if (user) {
+              setShowPostModal(true);
+              setPendingPostAction(false);
+            } else {
+              // Giriş modalını aç (Navbar'dan erişilebilir)
+              setPendingPostAction(true);
+              const event = new CustomEvent('openAuthModal', { detail: { mode: 'login' } });
+              window.dispatchEvent(event);
+            }
+          }}
+          className="fixed bottom-8 right-8 bg-[#2563EB] hover:bg-[#1E40AF] text-white rounded-full shadow-2xl flex items-center gap-2 px-6 py-3 transition-all hover:scale-105 z-50"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          <span className="font-semibold">Paylaş</span>
+        </button>
+      )}
 
       {/* Post Paylaşma Modalı */}
-      {showPostModal && user && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" onClick={() => setShowPostModal(false)}>
+      {isMounted && showPostModal && user && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm" 
+          onClick={() => {
+            if (!isPosting) {
+              setShowPostModal(false);
+              setPostContent('');
+              setPostImage(null);
+              setPostImagePreview(null);
+            }
+          }}
+        >
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
@@ -593,8 +974,10 @@ const ToplulukPage: React.FC = () => {
                     setPostContent('');
                     setPostImage(null);
                     setPostImagePreview(null);
+                    setIsPosting(false);
                   }}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
+                  disabled={isPosting}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -665,11 +1048,22 @@ const ToplulukPage: React.FC = () => {
                   <span className="text-sm">Fotoğraf</span>
                 </label>
                 <button
+                  type="button"
                   onClick={handlePostSubmit}
                   disabled={!postContent.trim() || isPosting}
-                  className="bg-[#2563EB] hover:bg-[#1E40AF] text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-[#2563EB] hover:bg-[#1E40AF] text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[120px] justify-center"
                 >
-                  {isPosting ? 'Paylaşılıyor...' : 'Paylaş'}
+                  {isPosting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Paylaşılıyor...</span>
+                    </>
+                  ) : (
+                    'Paylaş'
+                  )}
                 </button>
               </div>
             </div>
