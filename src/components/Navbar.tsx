@@ -726,9 +726,9 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
                     </div>
                   )}
                   <div className="text-left hidden sm:block">
-                    <p className="text-xs text-gray-600">{t('common.welcome')},</p>
-                    <p className="text-sm font-bold text-gray-900">{user.name || user.full_name || user.email}</p>
-                  </div>
+                  <p className="text-xs text-gray-600">{t('common.welcome')},</p>
+                  <p className="text-sm font-bold text-gray-900">{user.name || user.full_name || user.email}</p>
+                </div>
                   <svg className={`w-4 h-4 text-gray-600 transition-transform ${openDropdown === 'user-menu' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -780,7 +780,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
                         <div className="text-xs font-semibold text-gray-500 uppercase mb-2">{t('common.language')}</div>
                         <div className="space-y-1">
                           {languages.slice(0, 5).map((lang) => (
-                            <button
+                <button 
                               key={lang.code}
                               onClick={() => {
                                 const langCode = lang.code as 'tr' | 'en' | 'es' | 'zh' | 'ar' | 'fr' | 'de' | 'ja' | 'pt' | 'ru' | 'hi';
@@ -803,7 +803,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
                                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                               )}
-                            </button>
+                </button>
                           ))}
                         </div>
                       </div>

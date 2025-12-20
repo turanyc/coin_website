@@ -1,7 +1,17 @@
 import type { NextConfig } from "next";
 
+// GitHub Pages için base path
+// Repo adınızı buraya yazın (örn: /coin_website)
+const isGitHubPages = process.env.GITHUB_PAGES === 'true';
+const basePath = isGitHubPages ? (process.env.BASE_PATH || '/coin_website') : '';
+
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  // GitHub Pages için base path
+  basePath: basePath,
+  assetPrefix: basePath ? `${basePath}/` : undefined,
+  // Static export için
+  output: isGitHubPages ? 'export' : undefined,
   images: {
     remotePatterns: [
       {
@@ -15,6 +25,8 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+    // Static export için unoptimized
+    unoptimized: isGitHubPages,
   },
   // Production optimizations
   compress: true,
@@ -23,6 +35,8 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  // Trailing slash GitHub Pages için önemli
+  trailingSlash: isGitHubPages,
 };
 
 export default nextConfig;

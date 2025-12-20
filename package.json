@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:static": "GITHUB_PAGES=true BASE_PATH=/coin_website next build",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit"

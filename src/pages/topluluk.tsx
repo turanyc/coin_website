@@ -315,14 +315,14 @@ const ToplulukPage: React.FC = () => {
       let response: Response;
       try {
         response = await fetch('/api/community/posts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
             user_id: userId,
-            content_text: postContent,
-            image_url: imageUrl,
-            post_type: postImage ? 'image' : 'text',
-          }),
+          content_text: postContent,
+          image_url: imageUrl,
+          post_type: postImage ? 'image' : 'text',
+        }),
           signal: abortController.signal,
         });
       } catch (fetchError: any) {
@@ -675,7 +675,7 @@ const ToplulukPage: React.FC = () => {
                                       <span className="text-xs text-gray-600 font-medium">
                                         {comment.user_name.charAt(0).toUpperCase()}
                                       </span>
-                                    </div>
+                      </div>
                                   )}
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-1">
@@ -930,25 +930,25 @@ const ToplulukPage: React.FC = () => {
 
       {/* Floating Post Now Button - Sadece client-side'da göster */}
       {isMounted && (
-        <button
-          onClick={() => {
-            if (user) {
-              setShowPostModal(true);
+      <button
+        onClick={() => {
+          if (user) {
+            setShowPostModal(true);
               setPendingPostAction(false);
-            } else {
-              // Giriş modalını aç (Navbar'dan erişilebilir)
+          } else {
+            // Giriş modalını aç (Navbar'dan erişilebilir)
               setPendingPostAction(true);
-              const event = new CustomEvent('openAuthModal', { detail: { mode: 'login' } });
-              window.dispatchEvent(event);
-            }
-          }}
-          className="fixed bottom-8 right-8 bg-[#2563EB] hover:bg-[#1E40AF] text-white rounded-full shadow-2xl flex items-center gap-2 px-6 py-3 transition-all hover:scale-105 z-50"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+            const event = new CustomEvent('openAuthModal', { detail: { mode: 'login' } });
+            window.dispatchEvent(event);
+          }
+        }}
+        className="fixed bottom-8 right-8 bg-[#2563EB] hover:bg-[#1E40AF] text-white rounded-full shadow-2xl flex items-center gap-2 px-6 py-3 transition-all hover:scale-105 z-50"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
           <span className="font-semibold">Paylaş</span>
-        </button>
+      </button>
       )}
 
       {/* Post Paylaşma Modalı */}
