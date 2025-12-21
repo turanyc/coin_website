@@ -217,12 +217,22 @@ const ToplulukPage: React.FC = () => {
         influencersRes.json(),
       ]);
 
-      if (trendingData.coins) setTrendingCoins(trendingData.coins);
-      if (hotTopicData.topic) setHotTopic(hotTopicData.topic);
-      if (eventsData.events) setEvents(eventsData.events);
-      if (influencersData.influencers) setInfluencers(influencersData.influencers);
+      // Coin verilerini set et - boş array olsa bile set et
+      if (trendingData && Array.isArray(trendingData.coins)) {
+        console.log('Trending coins loaded:', trendingData.coins.length);
+        setTrendingCoins(trendingData.coins);
+      } else {
+        console.warn('Trending coins data is invalid:', trendingData);
+        setTrendingCoins([]);
+      }
+      
+      if (hotTopicData && hotTopicData.topic) setHotTopic(hotTopicData.topic);
+      if (eventsData && Array.isArray(eventsData.events)) setEvents(eventsData.events);
+      if (influencersData && Array.isArray(influencersData.influencers)) setInfluencers(influencersData.influencers);
     } catch (error) {
       console.error('Data fetch error:', error);
+      // Hata durumunda da boş array set et
+      setTrendingCoins([]);
     } finally {
       setLoading(false);
     }
@@ -444,11 +454,12 @@ const ToplulukPage: React.FC = () => {
 
           {loading ? (
             <div className="text-center text-gray-500 py-8">Yükleniyor...</div>
-          ) : (
+          ) : trendingCoins.length > 0 ? (
             <div className="space-y-2">
               {trendingCoins.map((coin) => (
-                <div
+                <Link
                   key={coin.id}
+                  href={`/currencies/${coin.id}`}
                   className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                 >
                   <span className="text-xs text-gray-500 font-medium w-6">{coin.rank}</span>
@@ -483,8 +494,12 @@ const ToplulukPage: React.FC = () => {
                       {formatPercentage(coin.price_change_percentage_24h)}
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
+            </div>
+          ) : (
+            <div className="text-center text-gray-500 py-8 text-sm">
+              Coin verisi yüklenemedi. Lütfen sayfayı yenileyin.
             </div>
           )}
         </aside>

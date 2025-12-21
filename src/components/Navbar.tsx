@@ -224,8 +224,8 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
   return (
     <>
       {/* Modern Navigation Bar */}
-      <nav className={`bg-white/95 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-50 transition-all duration-300 ${scrolled ? 'shadow-lg' : 'shadow-sm'}`}>
-        <div className="w-full px-4 py-4 flex items-center justify-between">
+      <nav className={`bg-white/95 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-[60] transition-all duration-300 ${scrolled ? 'shadow-lg' : 'shadow-sm'}`} style={{ position: 'relative', zIndex: 60 }}>
+        <div className="w-full px-4 py-4 flex items-center justify-between relative z-[61]">
           {/* Sol taraf - Logo ve Navigasyon */}
           <div className="flex items-center gap-8">
             {/* Logo */}
@@ -1028,8 +1028,16 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
       {/* Dropdown overlay - click outside to close */}
       {openDropdown && openDropdown !== 'mobile' && (
         <div
-          className="fixed inset-0 z-40"
-          onClick={() => setOpenDropdown(null)}
+          className="fixed inset-0 z-[45]"
+          onClick={(e) => {
+            // Don't close if clicking on navbar or its children
+            const target = e.target as HTMLElement;
+            if (target.closest('nav')) {
+              return;
+            }
+            // Close dropdown when clicking on overlay
+            setOpenDropdown(null);
+          }}
         ></div>
       )}
 
