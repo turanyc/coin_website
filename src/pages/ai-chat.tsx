@@ -108,7 +108,15 @@ const AIChatPage: React.FC = () => {
       return;
     }
 
+    let isMountedRef = true;
+    let interval: NodeJS.Timeout | null = null;
+
     const fetchMarketData = async () => {
+      if (!isMountedRef) return;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
       try {
         const response = await fetch(
           'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=15&page=1&sparkline=false&price_change_percentage=24h',
@@ -116,11 +124,18 @@ const AIChatPage: React.FC = () => {
             headers: {
               'Accept': 'application/json',
             },
+            signal: controller.signal,
           }
         );
         
+        clearTimeout(timeoutId);
+
+        if (!isMountedRef) return;
+        
         if (response.ok) {
           const coins: MarketCoin[] = await response.json();
+          
+          if (!isMountedRef) return;
           
           // Null/undefined kontrolü ve güvenli işleme
           if (Array.isArray(coins) && coins.length > 0) {
@@ -156,15 +171,20 @@ const AIChatPage: React.FC = () => {
               .filter((item): item is string => item !== null && typeof item === 'string')
               .join(', ');
             
-            if (marketSummary && marketSummary.length > 0) {
+            if (marketSummary && marketSummary.length > 0 && isMountedRef) {
               setMarketData(marketSummary);
             }
           }
         } else {
           console.warn('CoinGecko API response not OK:', response.status, response.statusText);
         }
-      } catch (error) {
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        if (error?.name === 'AbortError') {
+          console.warn('Market data fetch timeout');
+        } else {
         console.error('Error fetching market data:', error);
+        }
         // Hata durumunda boş bırak, backend fallback kullanır
       }
     };
@@ -173,11 +193,14 @@ const AIChatPage: React.FC = () => {
     fetchMarketData();
     
     // Her 30 saniyede bir güncelle
-    const interval = setInterval(() => {
+    interval = setInterval(() => {
+      if (isMountedRef) {
       fetchMarketData();
+      }
     }, 30000);
     
     return () => {
+      isMountedRef = false;
       if (interval) {
         clearInterval(interval);
       }

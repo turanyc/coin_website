@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/router';
 import Navbar from '../../components/Navbar';
 import MarketStatsBar from '../../components/MarketStatsBar';
 import PriceChart from '../../components/PriceChart';
+import logoImage from '../../img/cripto_logo.png';
 
 interface CoinDetail {
   id: string;
@@ -84,6 +86,24 @@ interface CoinDetailsData {
 
 type TimeRange = '24h' | '7d' | '30d' | '1y' | '3y' | '5y';
 
+interface TickerData {
+  base: string;
+  target: string;
+  last: number;
+  volume: number;
+  bid?: number;
+  ask?: number;
+  bid_ask_spread_percentage?: number;
+  trust_score?: string;
+  market: {
+    name: string;
+    identifier: string;
+    logo?: string;
+    has_trading_incentive?: boolean;
+  };
+  is_anomaly?: boolean;
+}
+
 const CoinDetailPage: React.FC = () => {
   const router = useRouter();
   const { coinId } = router.query;
@@ -117,6 +137,51 @@ const CoinDetailPage: React.FC = () => {
     return [];
   });
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: '', visible: false });
+  const [chartTab, setChartTab] = useState<'Price' | 'Mkt Cap' | 'TradingView'>('Price');
+  const [isLogScale, setIsLogScale] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [marketFilter, setMarketFilter] = useState<'ALL' | 'CEX' | 'DEX' | 'Spot' | 'Perpetual' | 'Futures'>('Spot');
+  const [marketPage, setMarketPage] = useState(1);
+  const [marketRowsPerPage, setMarketRowsPerPage] = useState(10);
+  const [sentimentBullish, setSentimentBullish] = useState(81);
+  const [sentimentBearish, setSentimentBearish] = useState(19);
+  const [sentimentVotes, setSentimentVotes] = useState(5800000);
+  const [sentimentPage, setSentimentPage] = useState(1);
+  const [sentimentTotalPages, setSentimentTotalPages] = useState(2);
+  const [postFeedTab, setPostFeedTab] = useState<'Top' | 'Latest'>('Top');
+  const [communityPosts, setCommunityPosts] = useState<Array<{
+    id: string;
+    user_id: string;
+    user_name: string;
+    user_email: string;
+    profile_picture_url: string | null;
+    is_verified: boolean;
+    content_text: string;
+    image_url: string | null;
+    created_at: string;
+    like_count: number;
+    comment_count: number;
+    share_count: number;
+    view_count: number;
+    bullish_count?: number;
+    bearish_count?: number;
+  }>>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [newPostText, setNewPostText] = useState('');
+  const [posting, setPosting] = useState(false);
+  const [markets, setMarkets] = useState<Array<{
+    exchange: string;
+    pair: string;
+    price: number;
+    volume24h: number;
+    volumePercent: number;
+    bidAskSpread?: { bid: number; ask: number };
+    liquidity?: number;
+    logo?: string;
+    trustScore?: string;
+    marketType?: string;
+  }>>([]);
+  const [marketsLoading, setMarketsLoading] = useState(false);
   const [marketStats, setMarketStats] = useState({
     totalCoins: 0,
     totalExchanges: 1414,
@@ -254,6 +319,250 @@ const CoinDetailPage: React.FC = () => {
     fetchCoinDetails();
   }, [coinId]);
 
+  // Markets (tickers) verisini çek
+  useEffect(() => {
+    if (!coinId || typeof coinId !== 'string') return;
+
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout | null = null;
+    const controller = new AbortController();
+    
+    const fetchMarkets = async () => {
+      setMarketsLoading(true);
+      timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      try {
+        const response = await fetch(
+          `https://api.coingecko.com/api/v3/coins/${coinId}/tickers?include_exchange_logo=true&page=1&order=volume_desc`,
+          {
+            signal: controller.signal,
+            headers: {
+              'Accept': 'application/json',
+            },
+          }
+        );
+
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+
+        if (!response.ok) {
+          console.error('Markets API response not OK:', response.status, response.statusText);
+          if (isMounted) {
+            setMarkets([]);
+            setMarketsLoading(false);
+          }
+          return;
+        }
+
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error('Error parsing Markets API JSON:', jsonError);
+          if (isMounted) {
+            setMarkets([]);
+            setMarketsLoading(false);
+          }
+          return;
+        }
+
+        if (!isMounted) {
+          setMarketsLoading(false);
+          return;
+        }
+
+        if (!data || typeof data !== 'object') {
+          console.error('Markets API returned invalid data:', data);
+          if (isMounted) {
+            setMarkets([]);
+            setMarketsLoading(false);
+          }
+          return;
+        }
+
+        if (data.tickers && Array.isArray(data.tickers) && data.tickers.length > 0) {
+          try {
+            const processedMarkets = (data.tickers as TickerData[])
+              .filter((ticker) => {
+                if (!ticker || typeof ticker !== 'object') return false;
+                // Filter by market type
+                if (marketFilter === 'ALL') return true;
+                if (marketFilter === 'CEX') return ticker.market?.identifier === 'cex';
+                if (marketFilter === 'DEX') return ticker.market?.identifier === 'dex';
+                if (marketFilter === 'Spot') {
+                  return ticker.market?.has_trading_incentive === false && !ticker.is_anomaly;
+                }
+                if (marketFilter === 'Perpetual') {
+                  const target = ticker.target || '';
+                  return target.includes('PERP') || target.includes('PERPETUAL');
+                }
+                if (marketFilter === 'Futures') {
+                  const target = ticker.target || '';
+                  return target.includes('FUTURES') || target.includes('FUTURE');
+                }
+                return true;
+              })
+              .map((ticker) => {
+                const base = ticker.base || '';
+                const target = ticker.target || '';
+                const marketName = ticker.market?.name || 'Bilinmiyor';
+                const lastPrice = typeof ticker.last === 'number' ? ticker.last : 0;
+                const volume = typeof ticker.volume === 'number' ? ticker.volume : 0;
+                const trustScore = ticker.trust_score || 'red';
+                const marketIdentifier = ticker.market?.identifier || '';
+
+                return {
+                  exchange: marketName,
+                  pair: `${base}/${target}`,
+                  price: lastPrice,
+                  volume24h: volume,
+                  volumePercent: 0, // Will calculate after
+                  bidAskSpread: ticker.bid_ask_spread_percentage && typeof ticker.bid === 'number' && typeof ticker.ask === 'number' ? {
+                    bid: ticker.bid,
+                    ask: ticker.ask,
+                  } : undefined,
+                  liquidity: trustScore === 'green' ? 100 : trustScore === 'yellow' ? 50 : 10,
+                  logo: ticker.market?.logo || (marketIdentifier ? `https://assets.coingecko.com/markets/images/${marketIdentifier}/small.png` : ''),
+                  trustScore: trustScore,
+                  marketType: marketIdentifier,
+                };
+              })
+              .filter((m) => m.volume24h > 0) // Only include markets with volume
+              .sort((a, b) => b.volume24h - a.volume24h);
+
+            // Calculate volume percentages
+            const totalVolume = processedMarkets.reduce((sum, m) => sum + m.volume24h, 0);
+            const marketsWithPercent = processedMarkets.map((m) => ({
+              ...m,
+              volumePercent: totalVolume > 0 ? (m.volume24h / totalVolume) * 100 : 0,
+            }));
+
+            if (isMounted) {
+              setMarkets(marketsWithPercent);
+            }
+          } catch (processError) {
+            console.error('Error processing markets data:', processError);
+            if (isMounted) {
+              setMarkets([]);
+              setMarketsLoading(false);
+            }
+          }
+        } else {
+          // No tickers data or empty array
+          if (isMounted) {
+            setMarkets([]);
+            setMarketsLoading(false);
+          }
+        }
+      } catch (error: unknown) {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        if (error instanceof Error) {
+          if (error.name === 'AbortError') {
+            console.warn('Markets fetch timeout');
+          } else {
+            console.error('Error fetching markets:', error.message, error);
+          }
+        } else {
+          console.error('Unknown error fetching markets:', error);
+        }
+        if (isMounted) {
+          setMarkets([]);
+          setMarketsLoading(false);
+        }
+      }
+    };
+
+    fetchMarkets();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+      // Cleanup timeout if component unmounts
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [coinId, marketFilter]);
+
+  // Community posts'ları çek
+  useEffect(() => {
+    const fetchCommunityPosts = async () => {
+      setPostsLoading(true);
+      try {
+        const response = await fetch('/api/community/posts');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.posts && Array.isArray(data.posts)) {
+            let filteredPosts = data.posts;
+            
+            // Eğer coin bilgisi varsa, o coin ile ilgili post'ları filtrele
+            if (coin && coin.symbol && coin.name) {
+              const coinSymbol = coin.symbol.toUpperCase();
+              const coinName = coin.name.toUpperCase();
+              const coinIdUpper = coin.id?.toUpperCase() || '';
+              
+              filteredPosts = data.posts.filter((post: { content_text?: string }) => {
+                const content = post.content_text?.toUpperCase() || '';
+                return content.includes(coinSymbol) || 
+                       content.includes(coinName) ||
+                       content.includes(coinIdUpper) ||
+                       content.includes(coin.symbol || '') ||
+                       content.includes(coin.name || '');
+              });
+            }
+            
+            // Eğer filtrelenmiş post yoksa, tüm post'ları göster (en azından bir şey gösterelim)
+            if (filteredPosts.length === 0 && data.posts.length > 0) {
+              filteredPosts = data.posts.slice(0, 10); // En son 10 post'u göster
+            }
+            
+            // Sort by feed tab
+            const sortedPosts = postFeedTab === 'Top' 
+              ? [...filteredPosts].sort((a: { like_count?: number; comment_count?: number }, b: { like_count?: number; comment_count?: number }) => 
+                  (b.like_count || 0) + (b.comment_count || 0) - (a.like_count || 0) - (a.comment_count || 0)
+                )
+              : [...filteredPosts].sort((a: { created_at: string }, b: { created_at: string }) => 
+                  new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                );
+            
+            setCommunityPosts(sortedPosts.slice(0, 10));
+            
+            // Sentiment değerlerini hesapla (filtrelenmiş post'lardan)
+            const totalBullish = filteredPosts.reduce((sum: number, post: { bullish_count?: number }) => sum + (post.bullish_count || 0), 0);
+            const totalBearish = filteredPosts.reduce((sum: number, post: { bearish_count?: number }) => sum + (post.bearish_count || 0), 0);
+            const totalVotes = totalBullish + totalBearish;
+            
+            if (totalVotes > 0) {
+              const bullishPercent = Math.round((totalBullish / totalVotes) * 100);
+              const bearishPercent = Math.round((totalBearish / totalVotes) * 100);
+              setSentimentBullish(bullishPercent);
+              setSentimentBearish(bearishPercent);
+              setSentimentVotes(totalVotes);
+            } else {
+              // Eğer hiç oy yoksa varsayılan değerler
+              setSentimentBullish(50);
+              setSentimentBearish(50);
+              setSentimentVotes(0);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching community posts:', error);
+        setCommunityPosts([]);
+      } finally {
+        setPostsLoading(false);
+      }
+    };
+
+    // Coin yüklenmesini beklemeden post'ları çek
+    fetchCommunityPosts();
+  }, [coin, postFeedTab]);
+
   // Global market stats'ı çek
   useEffect(() => {
     const fetchGlobalStats = async () => {
@@ -323,10 +632,100 @@ const CoinDetailPage: React.FC = () => {
   };
 
   const formatNumber = (num: number, decimals: number = 0) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
     return new Intl.NumberFormat('tr-TR', {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     }).format(num);
+  };
+
+  const formatPostDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
+    
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[date.getMonth()]} ${date.getDate()}`;
+  };
+
+  const handlePostSubmit = async () => {
+    if (!newPostText.trim() || posting) return;
+
+    try {
+      const storedUser = localStorage.getItem('currentUser');
+      if (!storedUser) {
+        setToast({ message: 'Lütfen önce giriş yapın', visible: true });
+        setTimeout(() => setToast({ message: '', visible: false }), 3000);
+        return;
+      }
+
+      const user = JSON.parse(storedUser);
+      const userId = user.id || user.user_id;
+
+      if (!userId) {
+        setToast({ message: 'Kullanıcı bilgisi bulunamadı', visible: true });
+        setTimeout(() => setToast({ message: '', visible: false }), 3000);
+        return;
+      }
+
+      setPosting(true);
+
+      const response = await fetch('/api/community/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          content_text: newPostText.trim(),
+          post_type: 'text',
+        }),
+      });
+
+      if (response.ok) {
+        setNewPostText('');
+        setToast({ message: 'Post başarıyla paylaşıldı!', visible: true });
+        setTimeout(() => setToast({ message: '', visible: false }), 3000);
+        
+        // Refresh posts
+        const postsResponse = await fetch('/api/community/posts');
+        if (postsResponse.ok) {
+          const data = await postsResponse.json();
+          if (data.posts && Array.isArray(data.posts)) {
+            const coinSymbol = coin?.symbol.toUpperCase() || '';
+            const filteredPosts = data.posts.filter((post: { content_text?: string }) => 
+              post.content_text?.toUpperCase().includes(coinSymbol) || 
+              post.content_text?.toUpperCase().includes(coin?.name.toUpperCase() || '')
+            );
+            const sortedPosts = postFeedTab === 'Top' 
+              ? [...filteredPosts].sort((a: { like_count?: number; comment_count?: number }, b: { like_count?: number; comment_count?: number }) => 
+                  (b.like_count || 0) + (b.comment_count || 0) - (a.like_count || 0) - (a.comment_count || 0)
+                )
+              : [...filteredPosts].sort((a: { created_at: string }, b: { created_at: string }) => 
+                  new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                );
+            setCommunityPosts(sortedPosts.slice(0, 10));
+          }
+        }
+      } else {
+        const errorData = await response.json();
+        setToast({ message: errorData.error || 'Post paylaşılırken hata oluştu', visible: true });
+        setTimeout(() => setToast({ message: '', visible: false }), 3000);
+      }
+    } catch (error) {
+      console.error('Error posting:', error);
+      setToast({ message: 'Post paylaşılırken hata oluştu', visible: true });
+      setTimeout(() => setToast({ message: '', visible: false }), 3000);
+    } finally {
+      setPosting(false);
+    }
   };
 
   const formatTrillion = (num: number) => {
@@ -432,7 +831,7 @@ const CoinDetailPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-14">
+    <div className="min-h-screen bg-white pb-14">
       <Head>
         <title>{coin.name} ({coin.symbol.toUpperCase()}) - Dijital Marketim</title>
         <meta name="description" content={`${coin.name} fiyat, grafik ve analiz bilgileri`} />
@@ -441,7 +840,7 @@ const CoinDetailPage: React.FC = () => {
       {/* Navbar */}
       <Navbar marketStats={marketStats} />
 
-      {/* Coin Detay İçeriği */}
+      {/* Coin Detay İçeriği - 3 Blok Layout */}
       <div className="w-full px-4 py-8">
         {/* Breadcrumb */}
         <nav className="mb-6 text-sm text-gray-600">
@@ -452,999 +851,1098 @@ const CoinDetailPage: React.FC = () => {
           <span className="text-gray-900 font-medium">{coin.name}</span>
         </nav>
 
-        {/* Header ve Grafik ile Yan Bloklar Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6 items-stretch">
-          {/* Sol Yan Bloklar */}
-          <div className="lg:col-span-3 flex flex-col space-y-4">
-            {/* Küresel Fiyatlar - Küçültülmüş */}
-            <div 
-              className="bg-white rounded-xl p-3 shadow-lg cursor-pointer hover:shadow-xl transition-all"
-              onClick={() => coinDetails && setExpandedBlock('global-prices')}
-            >
-              <h3 className="text-xs font-bold text-gray-900 mb-2">Küresel Fiyatlar</h3>
-              {coinDetails ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-semibold text-gray-900">{coin.symbol.toUpperCase()} / USD</div>
-                      <div className="text-xs text-gray-500">US Dollar</div>
-                    </div>
-                    <div className="text-xs font-bold text-gray-900">{formatCurrency(coinDetails.prices.usd)}</div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-semibold text-gray-900">{coin.symbol.toUpperCase()} / TRY</div>
-                      <div className="text-xs text-gray-500">Turkish Lira</div>
-                    </div>
-                    <div className="text-xs font-bold text-gray-900">{formatCurrencyTRY(coinDetails.prices.try)}</div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="h-8 bg-gray-100 rounded animate-pulse"></div>
-                  <div className="h-8 bg-gray-100 rounded animate-pulse"></div>
-                </div>
-              )}
-            </div>
-
-            {/* Piyasa İstatistikleri - Küçültülmüş */}
-            <div 
-              className="bg-white rounded-xl p-3 shadow-lg cursor-pointer hover:shadow-xl transition-all"
-              onClick={() => coinDetails && setExpandedBlock('market-stats')}
-            >
-              <h3 className="text-xs font-bold text-gray-900 mb-2">Piyasa İstatistikleri</h3>
-              {coinDetails ? (
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Piyasa Değeri</span>
-                    <span className="text-gray-900 font-semibold text-xs">{formatTrillion(coinDetails.marketData.marketCap.usd)} $</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">24s Hacim</span>
-                    <span className="text-gray-900 font-semibold text-xs">{formatTrillion(coinDetails.marketData.volume24h.usd)} $</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Dolaşım Arzı</span>
-                    <span className="text-gray-900 font-semibold text-xs">{formatTrillion(coinDetails.supply.circulating)}</span>
-                  </div>
-                  {coinDetails.marketData.marketCapRank && (
-                    <div className="flex justify-between pt-1.5 border-t border-gray-100">
-                      <span className="text-gray-600">Sıralama</span>
-                      <span className="text-gray-900 font-bold text-xs">#{coinDetails.marketData.marketCapRank}</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <div className="h-4 bg-gray-100 rounded animate-pulse"></div>
-                  <div className="h-4 bg-gray-100 rounded animate-pulse"></div>
-                  <div className="h-4 bg-gray-100 rounded animate-pulse"></div>
-                </div>
-              )}
-            </div>
-
-            {/* Tarihsel Fiyat - Küçültülmüş */}
-            <div 
-              className="bg-white rounded-xl p-3 shadow-lg cursor-pointer hover:shadow-xl transition-all"
-              onClick={() => coinDetails && setExpandedBlock('historical-price')}
-            >
-              <h3 className="text-xs font-bold text-gray-900 mb-2">Tarihsel Fiyat</h3>
-              {coinDetails ? (
-                <div className="space-y-1.5 text-xs">
-                  <div>
-                    <div className="text-gray-600 mb-0.5 text-xs">24sa Aralık</div>
-                    <div className="text-xs font-semibold text-gray-900">
-                      {formatCurrency(coinDetails.priceRange24h.low.usd)} - {formatCurrency(coinDetails.priceRange24h.high.usd)}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-gray-600 mb-0.5 text-xs">7g Aralık</div>
-                    <div className="text-xs font-semibold text-gray-900">
-                      {formatCurrency(coinDetails.priceRange7d.low)} - {formatCurrency(coinDetails.priceRange7d.high)}
-                    </div>
-                  </div>
-                  <div className="pt-1.5 border-t border-gray-100 grid grid-cols-2 gap-2">
-                    <div>
-                      <div className="text-gray-600 mb-0.5 text-xs">ATH</div>
-                      <div className="text-xs font-bold text-gray-900">{formatCurrency(coinDetails.ath.price.usd)}</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-600 mb-0.5 text-xs">ATL</div>
-                      <div className="text-xs font-bold text-gray-900">{formatCurrency(coinDetails.atl.price.usd)}</div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <div className="h-4 bg-gray-100 rounded animate-pulse"></div>
-                  <div className="h-4 bg-gray-100 rounded animate-pulse"></div>
-                  <div className="h-4 bg-gray-100 rounded animate-pulse"></div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Orta Kısım - Header ve Grafik */}
-          <div className="lg:col-span-6 flex flex-col space-y-6">
-        {/* Coin Header - Modern Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-lg">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
-                <div className="flex items-center gap-4">
-              {coin.image && (
-                <img
-                  src={coin.image}
-                  alt={coin.name}
-                      className="w-16 h-16 rounded-full ring-4 ring-gray-200"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              )}
-              <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-1">{coin.name}</h1>
-                    <p className="text-gray-500 uppercase text-base font-semibold">{coin.symbol}</p>
-              </div>
-            </div>
-            <div className="text-right flex flex-col items-end gap-3">
-                  <div className="text-4xl font-bold text-gray-900 mb-2">
-                {formatCurrency(coin.current_price)}
-              </div>
-              <div
-                    className={`text-xl font-semibold flex items-center gap-2 ${
-                  coin.price_change_percentage_24h >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}
-              >
-                <span>{coin.price_change_percentage_24h >= 0 ? '▲' : '▼'}</span>
-                <span>{Math.abs(coin.price_change_percentage_24h).toFixed(2)}%</span>
-                <span className="text-gray-500 text-sm font-normal">(24s)</span>
-              </div>
-              {/* Portfolio Butonu */}
-                <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const isInPortfolio = portfolio.includes(coin.id);
-                  if (isInPortfolio) {
-                    const newPortfolio = portfolio.filter(id => id !== coin.id);
-                    setPortfolio(newPortfolio);
-                    localStorage.setItem('portfolio', JSON.stringify(newPortfolio));
-                  } else {
-                    const newPortfolio = [...portfolio, coin.id];
-                    setPortfolio(newPortfolio);
-                    localStorage.setItem('portfolio', JSON.stringify(newPortfolio));
-                    // Toast bildirimi göster
-                    setToast({ message: `${coin.name} portföye eklendi`, visible: true });
-                    setTimeout(() => {
-                      setToast({ message: '', visible: false });
-                    }, 3000);
-                  }
-                }}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
-                  portfolio.includes(coin.id)
-                    ? 'bg-[#2563EB] hover:bg-[#1E40AF] text-white shadow-lg'
-                    : 'bg-gray-100 hover:bg-[#2563EB] hover:text-white text-gray-400'
-                }`}
-                title={portfolio.includes(coin.id) ? 'Portföyden çıkar' : 'Portföye ekle'}
-              >
-                {portfolio.includes(coin.id) ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                )}
-                </button>
-            </div>
-          </div>
-
-          {/* Yüzdelik Değişim */}
-          <div className="mb-4 pb-4">
-            <div className="text-right">
-              <div className="text-xs text-gray-600 mb-1">Seçili Zaman Dilimi Değişimi</div>
-              <div
-                className={`text-2xl font-bold ${
-                  priceChange >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}
-              >
-                {priceChange >= 0 ? '▲' : '▼'} {Math.abs(priceChange).toFixed(2)}%
-              </div>
-            </div>
-          </div>
-
-          {/* İstatistikler Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="text-xs text-gray-600 mb-1">Piyasa Değeri</div>
-                  <div className="text-base font-bold text-gray-900">{formatTrillion(coin.market_cap)} $</div>
-            </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="text-xs text-gray-600 mb-1">24s Hacim</div>
-                  <div className="text-base font-bold text-gray-900">{formatTrillion(coin.total_volume)} $</div>
-            </div>
-                <div 
-                  className="bg-gray-50 rounded-lg p-3 relative"
-                  onMouseEnter={(e) => {
-                    const element = e.currentTarget.querySelector('.value-text') as HTMLElement;
-                    if (element && element.scrollWidth > element.clientWidth) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setTooltipContent(formatCurrency(coin.market_cap));
-                      setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top - 10 });
-                    }
-                  }}
-                  onMouseLeave={() => {
-                    setTooltipContent(null);
-                    setTooltipPosition(null);
-                  }}
-                >
-                  <div className="text-xs text-gray-600 mb-1">Tam Piyasa Değeri</div>
-                  <div className="text-base font-bold text-gray-900 value-text truncate">{formatCurrency(coin.market_cap)}</div>
-            </div>
-                <div 
-                  className="bg-gray-50 rounded-lg p-3 relative"
-                  onMouseEnter={(e) => {
-                    const element = e.currentTarget.querySelector('.value-text') as HTMLElement;
-                    if (element && element.scrollWidth > element.clientWidth) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setTooltipContent(formatCurrency(coin.total_volume));
-                      setTooltipPosition({ x: rect.left + rect.width / 2, y: rect.top - 10 });
-                    }
-                  }}
-                  onMouseLeave={() => {
-                    setTooltipContent(null);
-                    setTooltipPosition(null);
-                  }}
-                >
-                  <div className="text-xs text-gray-600 mb-1">Tam Hacim</div>
-                  <div className="text-base font-bold text-gray-900 value-text truncate">{formatCurrency(coin.total_volume)}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Modern Grafik Kartı */}
-            <div className="bg-white rounded-2xl p-4 shadow-lg">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-bold text-gray-900">Fiyat Grafiği</h2>
+        {/* 3 Column Layout - x-3x-x (1-3-1) */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-[calc(100vh-200px)]">
+          {/* Sol Blok - Coin Info */}
+          <div className="lg:col-span-1 bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col">
+            <div className="overflow-y-auto flex-1 p-6 space-y-6">
+              {/* Coin Header */}
+              <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  {/* Zaman Dilimi Seçenekleri */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {(['24h', '7d', '30d', '1y', '3y', '5y'] as TimeRange[]).map((range) => (
-                      <button
-                        key={range}
-                        onClick={() => setTimeRange(range)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                          timeRange === range
-                            ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30'
-                            : 'bg-gray-100 text-gray-700 hover:text-gray-900 hover:bg-gray-200'
-                        }`}
-                      >
-                        {timeRangeMap[range].label}
-                      </button>
-                    ))}
-                  </div>
-            <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-600">Veri:</span>
-                    <span className="text-xs font-semibold text-blue-600">CoinGecko</span>
-                  </div>
-            </div>
-          </div>
-
-          {chartLoading ? (
-            <div className="h-96 flex items-center justify-center">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <div className="text-gray-600">Grafik yükleniyor...</div>
-              </div>
-            </div>
-          ) : chartData.priceData && Array.isArray(chartData.priceData) && chartData.priceData.length > 0 ? (
-            <div className="relative w-full">
-              <div className="w-full overflow-x-auto">
-                <PriceChart 
-                  data={chartData.priceData} 
-                  width={500} 
-                  height={200}
-                  timeRange={timeRange}
-                />
-              </div>
-              {/* Grafik Alt Bilgi */}
-              <div className="mt-3 flex items-center justify-between text-xs text-gray-600 bg-gray-50 rounded-lg px-4 py-2">
-                <div>
-                  Başlangıç: <span className="text-gray-900 font-semibold">{formatCurrency(chartData.firstPrice || 0)}</span>
-                </div>
-                <div>
-                  Bitiş: <span className="text-gray-900 font-semibold">{formatCurrency(chartData.lastPrice || coin.current_price)}</span>
-                </div>
-                <div>
-                  Değişim: <span className={`font-semibold ${priceChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="h-96 flex items-center justify-center text-gray-600">
-              {chartData.error ? (
-                <div className="text-center max-w-md mx-auto px-4">
-                  <p className="text-red-600 mb-2 font-semibold">Grafik verisi yüklenemedi</p>
-                  <p className="text-sm text-gray-500 mb-4">{chartData.error}</p>
-                  {chartData.error.includes('429') || chartData.error.includes('çok fazla') ? (
-                    <div className="bg-yellow-50 rounded-lg p-4 mt-4">
-                      <p className="text-sm text-yellow-800">
-                        CoinGecko API rate limit&apos;e ulaşıldı. Lütfen birkaç dakika sonra tekrar deneyin.
-                      </p>
-            </div>
-                  ) : null}
-                </div>
-              ) : (
-                'Grafik verisi yükleniyor...'
-          )}
-        </div>
-          )}
-                </div>
-              </div>
-
-          {/* Sağ Yan Bloklar */}
-          <div className="lg:col-span-3 flex flex-col space-y-4">
-            {/* Coin Çevirici - Küçültülmüş */}
-            <div 
-              className="bg-white rounded-xl p-3 shadow-lg cursor-pointer hover:shadow-xl transition-all"
-              onClick={(e) => {
-                e.stopPropagation();
-                coinDetails && setExpandedBlock('converter');
-              }}
-            >
-              <h3 className="text-xs font-bold text-gray-900 mb-2">{coin.symbol.toUpperCase()} Çevirici</h3>
-              {coinDetails ? (
-                <div className="space-y-2">
-              <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-0.5">{coin.symbol.toUpperCase()}</label>
-                <input
-                  type="number"
-                  value={converterAmount}
-                  onChange={(e) => {
-                        e.stopPropagation();
-                    setConverterAmount(e.target.value);
-                  }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-full px-2 py-1.5 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-                  placeholder="1"
-                />
-              </div>
-              <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-0.5">Para Birimi</label>
-                <select
-                  value={converterCurrency}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        setConverterCurrency(e.target.value as 'usd' | 'try');
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-full px-2 py-1.5 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-                >
-                  <option value="usd">USD</option>
-                  <option value="try">TRY</option>
-                </select>
-              </div>
-                  <div className="p-2 bg-gray-50 rounded-lg">
-                    <div className="text-xs text-gray-600 mb-0.5">Sonuç:</div>
-                    <div className="text-sm font-bold text-gray-900">
-                {converterCurrency === 'usd'
-                  ? formatCurrency(parseFloat(converterAmount || '0') * coinDetails.prices.usd)
-                  : formatCurrencyTRY(parseFloat(converterAmount || '0') * coinDetails.prices.try)}
-              </div>
-            </div>
-          </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="h-8 bg-gray-100 rounded animate-pulse"></div>
-                  <div className="h-8 bg-gray-100 rounded animate-pulse"></div>
-                  <div className="h-12 bg-gray-100 rounded animate-pulse"></div>
-                </div>
-                  )}
-                </div>
-
-            {/* Bilgi Bölümü - Küçültülmüş */}
-            <div 
-              className="bg-white rounded-xl p-3 shadow-lg cursor-pointer hover:shadow-xl transition-all"
-              onClick={(e) => {
-                e.stopPropagation();
-                coinDetails && setExpandedBlock('info');
-              }}
-            >
-              <h3 className="text-xs font-bold text-gray-900 mb-2">Bilgi</h3>
-              {coinDetails ? (
-                <div className="space-y-1.5 text-xs">
-              {coinDetails.links.homepage && (
-                <div>
-                      <div className="text-gray-600 mb-0.5 text-xs">İnternet Sitesi</div>
-                    <a
-                      href={coinDetails.links.homepage}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline text-xs"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {coinDetails.links.homepage.replace(/^https?:\/\//, '').replace(/\/$/, '').substring(0, 25)}
-                      </a>
-                </div>
-              )}
-              {coinDetails.links.blockchainExplorers.length > 0 && (
-                <div>
-                      <div className="text-gray-600 mb-0.5 text-xs">Tarayıcılar</div>
-                      <div className="flex flex-wrap gap-1">
-                        {coinDetails.links.blockchainExplorers.slice(0, 2).map((explorer, idx) => (
-                      <a
-                        key={idx}
-                        href={explorer}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                            className="px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 rounded text-xs text-gray-700 transition-colors"
-                            onClick={(e) => e.stopPropagation()}
-                      >
-                            {explorer.replace(/^https?:\/\//, '').replace(/\/$/, '').split('/')[0].substring(0, 12)}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-                  {coinDetails.marketData.marketCapRank && (
-                    <div className="pt-1.5 border-t border-gray-100">
-                      <div className="text-gray-600 mb-0.5 text-xs">Sıralama</div>
-                      <div className="text-xs font-bold text-gray-900">#{coinDetails.marketData.marketCapRank}</div>
-                    </div>
-                  )}
-                  </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <div className="h-4 bg-gray-100 rounded animate-pulse"></div>
-                  <div className="h-4 bg-gray-100 rounded animate-pulse"></div>
-                  <div className="h-4 bg-gray-100 rounded animate-pulse"></div>
-                </div>
-              )}
-                </div>
-
-            {/* Topluluk Duygu Anketi - Küçültülmüş */}
-            <div 
-              className="bg-white rounded-xl p-3 shadow-lg cursor-pointer hover:shadow-xl transition-all"
-              onClick={() => setExpandedBlock('sentiment')}
-            >
-              <h3 className="text-xs font-bold text-gray-900 mb-1.5">
-                Bugün {coin.name} hakkında nasıl hissediyorsunuz?
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  className="p-2 bg-white rounded-lg hover:bg-green-50 transition-all text-center shadow-sm"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="text-xl mb-0.5">🚀</div>
-                  <div className="text-sm font-bold text-gray-900">81%</div>
-                  <div className="text-xs text-gray-600">Yükseliş</div>
-                </button>
-                <button 
-                  className="p-2 bg-white rounded-lg hover:bg-red-50 transition-all text-center shadow-sm"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="text-xl mb-0.5">👎</div>
-                  <div className="text-sm font-bold text-gray-900">39%</div>
-                  <div className="text-xs text-gray-600">Düşüş</div>
-                </button>
-                  </div>
-                </div>
-            </div>
-          </div>
-
-        {/* Coin Hakkında Detaylı Bilgiler - Küçültülmüş */}
-        {coinDetails && coinDetails.description && (
-          <div 
-            className="bg-white rounded-xl p-4 shadow-lg mb-6 cursor-pointer hover:shadow-xl transition-all"
-            onClick={() => setExpandedBlock('about')}
-          >
-            <h3 className="text-sm font-bold text-gray-900 mb-3">{coin.name} ({coin.symbol.toUpperCase()}) nedir?</h3>
-            <div className="text-xs text-gray-700 leading-relaxed line-clamp-4">
-              <div
-                dangerouslySetInnerHTML={{
-                  __html: coinDetails.description
-                    .split('\n')
-                    .map((para) => `<p>${para}</p>`)
-                    .join('')
-                    .substring(0, 500) + (coinDetails.description.length > 500 ? '...' : ''),
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Haberler Bölümü */}
-        {news.length > 0 && (
-          <div className="bg-white rounded-2xl p-8 shadow-lg mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">{coin.name} Son Haberleri ve Yorumları</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {news.map((article) => {
-                // URL'yi kontrol et ve düzelt
-                let articleUrl = article.url || '';
-                
-                // URL boş veya geçersizse varsayılan URL oluştur
-                if (!articleUrl || articleUrl.trim() === '' || articleUrl === '#') {
-                  articleUrl = `https://cointelegraph.com/search?q=${encodeURIComponent(coin.name)}`;
-                } else {
-                  // URL geçerli mi kontrol et ve düzelt
-                  try {
-                    // URL'i parse et
-                    const url = new URL(articleUrl);
-                    articleUrl = url.toString();
-                  } catch {
-                    // URL geçerli değilse, http/https ekle
-                    if (!articleUrl.startsWith('http://') && !articleUrl.startsWith('https://')) {
-                      articleUrl = `https://${articleUrl}`;
-                    }
-                    // Tekrar kontrol et
-                    try {
-                      new URL(articleUrl);
-                    } catch {
-                      // Hala geçersizse varsayılan URL kullan
-                      articleUrl = `https://cointelegraph.com/search?q=${encodeURIComponent(coin.name)}`;
-                    }
-                  }
-                }
-                
-                return (
-                <a
-                  key={article.id}
-                  href={articleUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block bg-white rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group shadow-sm"
-                >
-                  <div className="relative w-full h-48 bg-gray-200 overflow-hidden">
+                  {coin.image && (
                     <img
-                      src={article.image}
-                      alt={article.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      src={coin.image}
+                      alt={coin.name}
+                      className="w-12 h-12 rounded-full"
                       onError={(e) => {
-                        e.currentTarget.src = 'https://via.placeholder.com/400x250?text=Haber+Görseli';
+                        e.currentTarget.style.display = 'none';
                       }}
                     />
-                  </div>
-                  <div className="p-4">
-                    <h3 className="text-base font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                      {article.title}
-                    </h3>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span className="font-medium">{article.source}</span>
-                      <span>{article.publishedTime}</span>
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h1 className="text-2xl font-bold text-gray-900">{coin.name}</h1>
+                      <span className="text-gray-600 text-sm">{coin.symbol.toUpperCase()}</span>
+                      {coinDetails?.marketData.marketCapRank && (
+                        <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-semibold">
+                          #{coinDetails.marketData.marketCapRank}
+                        </span>
+                      )}
                     </div>
                   </div>
-                </a>
-                );
-              })}
-            </div>
-            <div className="mt-6 text-center">
-              <a
-                href={`https://cointelegraph.com/search?q=${coin.name}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block px-8 py-4 bg-[#2563EB] hover:bg-[#1E40AF] text-white font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-lg"
-              >
-                Daha Fazla Haber Gör
-              </a>
-            </div>
-          </div>
-        )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                    <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                    <span className="text-xs text-gray-700 ml-1">6M</span>
+                  </button>
+                  <button className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                    <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
 
-        {/* Ek Bilgiler */}
-        <div className="bg-white rounded-2xl p-8 shadow-lg mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Hakkında</h2>
-          <p className="text-gray-700 leading-relaxed">
-            {coin.name} ({coin.symbol.toUpperCase()}), kripto para piyasasında aktif olarak işlem gören bir
-            dijital varlıktır. Mevcut fiyatı {formatCurrency(coin.current_price)} seviyesindedir ve son 24
-            saatte %{Math.abs(coin.price_change_percentage_24h).toFixed(2)}{' '}
-            {coin.price_change_percentage_24h >= 0 ? 'artış' : 'düşüş'} göstermiştir.
-          </p>
-          {coin.last_updated && (
-            <div className="mt-4 text-sm text-gray-600">
-              Son Güncelleme: {new Date(coin.last_updated).toLocaleString('tr-TR')}
-            </div>
-          )}
-        </div>
+              {/* Price and Change */}
+              <div>
+                <div className="text-3xl font-bold text-gray-900 mb-2">
+                  {formatCurrency(coin.current_price)}
+                </div>
+                <div className={`text-lg font-semibold ${coin.price_change_percentage_24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {coin.price_change_percentage_24h >= 0 ? '▲' : '▼'} {Math.abs(coin.price_change_percentage_24h).toFixed(2)}% (24s)
+                </div>
+              </div>
 
-        {/* Tooltip */}
-        {tooltipContent && tooltipPosition && (
-          <div
-            className="fixed z-50 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg pointer-events-none"
-            style={{
-              left: `${tooltipPosition.x}px`,
-              top: `${tooltipPosition.y}px`,
-              transform: 'translateX(-50%) translateY(-100%)',
-            }}
-          >
-            {tooltipContent}
-            <div
-              className="absolute left-1/2 top-full -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"
-            />
-          </div>
-        )}
+              {/* Key Metrics Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                  <div className="flex items-center gap-1 mb-1">
+                    <span className="text-xs text-gray-600">Vol/Mkt Cap (24h)</span>
+                    <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {coinDetails ? ((coinDetails.marketData.volume24h.usd / coinDetails.marketData.marketCap.usd) * 100).toFixed(3) : '0.876'}%
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                  <div className="flex items-center gap-1 mb-1">
+                    <span className="text-xs text-gray-600">Toplam arz</span>
+                    <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {coinDetails ? formatTrillion(coinDetails.supply.total) : '19.96M'} {coin.symbol.toUpperCase()}
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                  <div className="flex items-center gap-1 mb-1">
+                    <span className="text-xs text-gray-600">Max. supply</span>
+                    <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {coinDetails && coinDetails.supply.max ? formatTrillion(coinDetails.supply.max) : '21M'} {coin.symbol.toUpperCase()}
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                  <div className="flex items-center gap-1 mb-1">
+                    <span className="text-xs text-gray-600">Dolaşımdaki arz</span>
+                    <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm font-semibold text-gray-900">
+                      {coinDetails ? formatTrillion(coinDetails.supply.circulating) : '19.96M'} {coin.symbol.toUpperCase()}
+                    </div>
+                    <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
 
-        {/* Genişletilmiş Blok Modal */}
-        {expandedBlock && coinDetails && (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
-            onClick={() => setExpandedBlock(null)}
-          >
-            <div 
-              className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  {expandedBlock === 'global-prices' && 'Küresel Fiyatlar'}
-                  {expandedBlock === 'market-stats' && 'Piyasa İstatistikleri'}
-                  {expandedBlock === 'historical-price' && 'Tarihsel Fiyat'}
-                  {expandedBlock === 'converter' && `${coin.symbol.toUpperCase()} Çevirici`}
-                  {expandedBlock === 'info' && 'Bilgi'}
-                  {expandedBlock === 'sentiment' && `Bugün ${coin.name} hakkında nasıl hissediyorsunuz?`}
-                  {expandedBlock === 'about' && `${coin.name} (${coin.symbol.toUpperCase()}) nedir?`}
-                </h2>
-                <button
-                  onClick={() => setExpandedBlock(null)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-                >
-                  ×
+              {/* Profile Score */}
+              <div>
+                <div className="flex items-center gap-1 mb-2">
+                  <span className="text-sm text-gray-600">Profile score</span>
+                  <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="relative w-full bg-gray-200 rounded-full h-2 mb-3">
+                  <div className="bg-green-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+                </div>
+                <div className="text-sm font-semibold text-gray-900 mb-3">100%</div>
+                <button className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Artır
                 </button>
               </div>
-              
-              <div className="p-6">
-                {/* Küresel Fiyatlar */}
-                {expandedBlock === 'global-prices' && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-gray-50 rounded-xl p-6">
-                        <div className="text-sm text-gray-600 mb-2">{coin.symbol.toUpperCase()} / USD</div>
-                        <div className="text-3xl font-bold text-gray-900 mb-2">{formatCurrency(coinDetails.prices.usd)}</div>
-                        <div className="text-sm text-gray-500">US Dollar</div>
-                      </div>
-                      <div className="bg-gray-50 rounded-xl p-6">
-                        <div className="text-sm text-gray-600 mb-2">{coin.symbol.toUpperCase()} / TRY</div>
-                        <div className="text-3xl font-bold text-gray-900 mb-2">{formatCurrencyTRY(coinDetails.prices.try)}</div>
-                        <div className="text-sm text-gray-500">Turkish Lira</div>
-                      </div>
-                    </div>
-                    <div className="bg-blue-50 rounded-xl p-4">
-                      <p className="text-sm text-blue-800">
-                        <strong>Not:</strong> Fiyatlar gerçek zamanlı olarak güncellenmektedir. Farklı borsalarda fiyatlar değişiklik gösterebilir.
-                      </p>
-                    </div>
-                  </div>
-                )}
 
-                {/* Piyasa İstatistikleri */}
-                {expandedBlock === 'market-stats' && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-gray-50 rounded-xl p-6">
-                        <div className="text-sm text-gray-600 mb-2">Piyasa Değeri</div>
-                        <div className="text-2xl font-bold text-gray-900">{formatCurrency(coinDetails.marketData.marketCap.usd)}</div>
-                        <div className="text-xs text-gray-500 mt-2">TRY: {formatCurrencyTRY(coinDetails.marketData.marketCap.try)}</div>
-                      </div>
-                      <div className="bg-gray-50 rounded-xl p-6">
-                        <div className="text-sm text-gray-600 mb-2">24 Saat Hacim</div>
-                        <div className="text-2xl font-bold text-gray-900">{formatCurrency(coinDetails.marketData.volume24h.usd)}</div>
-                        <div className="text-xs text-gray-500 mt-2">TRY: {formatCurrencyTRY(coinDetails.marketData.volume24h.try)}</div>
-                      </div>
-                      <div className="bg-gray-50 rounded-xl p-6">
-                        <div className="text-sm text-gray-600 mb-2">Dolaşım Arzı</div>
-                        <div className="text-2xl font-bold text-gray-900">{formatNumber(coinDetails.supply.circulating)}</div>
-                        <div className="text-xs text-gray-500 mt-2">{coin.symbol.toUpperCase()}</div>
-                      </div>
-                      <div className="bg-gray-50 rounded-xl p-6">
-                        <div className="text-sm text-gray-600 mb-2">Toplam Arz</div>
-                        <div className="text-2xl font-bold text-gray-900">{formatNumber(coinDetails.supply.total)}</div>
-                        <div className="text-xs text-gray-500 mt-2">{coin.symbol.toUpperCase()}</div>
-                      </div>
-                    </div>
-                    {coinDetails.marketData.marketCapRank && (
-                      <div className="bg-blue-50 rounded-xl p-4">
-                        <div className="text-sm text-blue-800">
-                          <strong>Piyasa Değeri Sıralaması:</strong> #{coinDetails.marketData.marketCapRank}
-                        </div>
-                      </div>
+              {/* External Links */}
+              <div className="space-y-4">
+                {/* Website */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Website</span>
+                  <div className="flex items-center gap-2">
+                    {coinDetails?.links.homepage && (
+                      <a
+                        href={coinDetails.links.homepage}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                        </svg>
+                        Web Sitesi
+                      </a>
+                    )}
+                    {coinDetails?.links.whitepaper && (
+                      <button className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Whitepaper
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
                     )}
                   </div>
-                )}
+                </div>
 
-                {/* Tarihsel Fiyat */}
-                {expandedBlock === 'historical-price' && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-gray-50 rounded-xl p-6">
-                        <div className="text-sm text-gray-600 mb-2">24 Saat Aralık</div>
-                        <div className="text-lg font-semibold text-gray-900 mb-1">Düşük</div>
-                        <div className="text-2xl font-bold text-gray-900 mb-4">{formatCurrency(coinDetails.priceRange24h.low.usd)}</div>
-                        <div className="text-lg font-semibold text-gray-900 mb-1">Yüksek</div>
-                        <div className="text-2xl font-bold text-gray-900">{formatCurrency(coinDetails.priceRange24h.high.usd)}</div>
-                      </div>
-                      <div className="bg-gray-50 rounded-xl p-6">
-                        <div className="text-sm text-gray-600 mb-2">7 Gün Aralık</div>
-                        <div className="text-lg font-semibold text-gray-900 mb-1">Düşük</div>
-                        <div className="text-2xl font-bold text-gray-900 mb-4">{formatCurrency(coinDetails.priceRange7d.low)}</div>
-                        <div className="text-lg font-semibold text-gray-900 mb-1">Yüksek</div>
-                        <div className="text-2xl font-bold text-gray-900">{formatCurrency(coinDetails.priceRange7d.high)}</div>
-                      </div>
+                {/* Socials */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Sosyal medya</span>
+                  <div className="flex items-center gap-2">
+                    {coinDetails?.links.subreddit && (
+                      <a
+                        href={`https://reddit.com${coinDetails.links.subreddit}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-8 h-8 flex items-center justify-center"
+                      >
+                        <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z" />
+                        </svg>
+                      </a>
+                    )}
+                    {coinDetails?.links.github && (
+                      <a
+                        href={coinDetails.links.github}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-8 h-8 flex items-center justify-center"
+                      >
+                        <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                        </svg>
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Rating */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Değerlendirme</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-900">4.7</span>
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <svg key={i} className={`w-4 h-4 ${i <= 4 ? 'text-yellow-400' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      ))}
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-green-50 rounded-xl p-6">
-                        <div className="text-sm text-gray-600 mb-2">Tüm Zamanların En Yükseği (ATH)</div>
-                        <div className="text-2xl font-bold text-gray-900 mb-2">{formatCurrency(coinDetails.ath.price.usd)}</div>
-                        {coinDetails.ath.date && (
-                          <div className="text-xs text-gray-500">{new Date(coinDetails.ath.date).toLocaleDateString('tr-TR')}</div>
-                        )}
-                      </div>
-                      <div className="bg-red-50 rounded-xl p-6">
-                        <div className="text-sm text-gray-600 mb-2">Tüm Zamanların En Düşüğü (ATL)</div>
-                        <div className="text-2xl font-bold text-gray-900 mb-2">{formatCurrency(coinDetails.atl.price.usd)}</div>
-                        {coinDetails.atl.date && (
-                          <div className="text-xs text-gray-500">{new Date(coinDetails.atl.date).toLocaleDateString('tr-TR')}</div>
-                        )}
-                      </div>
-                    </div>
+                    <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Explorers */}
+                {coinDetails && coinDetails.links.blockchainExplorers && coinDetails.links.blockchainExplorers.length > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Keşifçiler</span>
+                    <button className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors">
+                      {coinDetails.links.blockchainExplorers[0]?.replace(/^https?:\/\//, '').replace(/\/$/, '').split('/')[0].substring(0, 15) || 'Keşifçi'}
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
                   </div>
                 )}
 
-                {/* Çevirici */}
-                {expandedBlock === 'converter' && (
-                  <div className="space-y-6">
-                    <div className="bg-gray-50 rounded-xl p-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">{coin.symbol.toUpperCase()}</label>
-                          <input
-                            type="number"
-                            value={converterAmount}
-                            onChange={(e) => setConverterAmount(e.target.value)}
-                            className="w-full px-4 py-3 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
-                            placeholder="1"
-                          />
+                {/* Wallets */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Cüzdanlar</span>
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="w-8 h-8 bg-gray-200 rounded-full"></div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* UCID */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm text-gray-600">UCID</span>
+                    <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-900">1</span>
+                    <button className="p-1 hover:bg-gray-100 rounded transition-colors">
+                      <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Converter */}
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">{coin.symbol.toUpperCase()} to USD converter</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-gray-600 mb-1 block">{coin.symbol.toUpperCase()}</label>
+                    <input
+                      type="number"
+                      value={converterAmount}
+                      onChange={(e) => setConverterAmount(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="1"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600 mb-1 block">USD</label>
+                    <input
+                      type="text"
+                      value={coinDetails ? formatCurrency(parseFloat(converterAmount || '0') * coinDetails.prices.usd) : '0.00'}
+                      readOnly
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Price Performance */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-900">Fiyat performansı</h3>
+                  <button className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors">
+                    24h
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+                {coinDetails && (
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <div className="text-xs text-gray-600 mb-1">Düşük</div>
+                        <div className="text-sm font-semibold text-gray-900">{formatCurrency(coinDetails.priceRange24h.low.usd)}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-gray-600 mb-1">Yüksek</div>
+                        <div className="text-sm font-semibold text-gray-900">{formatCurrency(coinDetails.priceRange24h.high.usd)}</div>
+                      </div>
+                    </div>
+                    <div className="relative w-full h-2 bg-gray-200 rounded-full mb-4">
+                      <div className="absolute left-0 top-0 h-2 bg-blue-500 rounded-full" style={{ width: '50%' }}></div>
+                      <div className="absolute left-1/2 top-0 w-1 h-2 bg-gray-900 rounded-full transform -translate-x-1/2"></div>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-600">Tüm zamanların en yükseği</span>
+                          <span className="text-xs text-gray-600">{coinDetails.ath.date ? formatDate(coinDetails.ath.date) : 'Bilinmiyor'}</span>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Para Birimi</label>
-                          <select
-                            value={converterCurrency}
-                            onChange={(e) => setConverterCurrency(e.target.value as 'usd' | 'try')}
-                            className="w-full px-4 py-3 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-gray-900">{formatCurrency(coinDetails.ath.price.usd)}</span>
+                          <span className="text-xs text-red-600">
+                            {coinDetails.ath.price.usd > 0 ? (((coin.current_price - coinDetails.ath.price.usd) / coinDetails.ath.price.usd) * 100).toFixed(2) : '0.00'}%
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-600">Tüm zamanların en düşüğü</span>
+                          <span className="text-xs text-gray-600">{coinDetails.atl.date ? formatDate(coinDetails.atl.date) : 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-gray-900">{formatCurrency(coinDetails.atl.price.usd)}</span>
+                          <span className="text-xs text-green-600">
+                            {coinDetails.atl.price.usd > 0 ? (((coin.current_price - coinDetails.atl.price.usd) / coinDetails.atl.price.usd) * 100).toFixed(2) : '0.00'}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <a href="#" className="text-xs text-blue-600 hover:text-blue-700 mt-2 inline-block">Geçmiş verileri gör</a>
+                  </>
+                )}
+              </div>
+
+              {/* Tags */}
+              {coinDetails && coinDetails.categories.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Tags</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {coinDetails.categories.slice(0, 6).map((tag, index) => (
+                      <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Orta Blok - Chart, CMC AI, Markets */}
+          <div className="lg:col-span-3 bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col">
+            <div className="overflow-y-auto flex-1 p-6 space-y-6">
+              {/* Chart Section */}
+              <div className="space-y-4">
+                {/* Chart Header */}
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setChartTab('Price')}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                        chartTab === 'Price'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Fiyat
+                    </button>
+                    <button
+                      onClick={() => setChartTab('Mkt Cap')}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                        chartTab === 'Mkt Cap'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Mkt Cap
+                    </button>
+                    <button
+                      onClick={() => setChartTab('TradingView')}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors flex items-center gap-1 ${
+                        chartTab === 'TradingView'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      TradingView
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-lg flex items-center gap-1 transition-colors">
+                      Karşılaştır
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Time Range Selectors */}
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-2">
+                    {(['24h', '1W', '1M', '1Y', 'All'] as const).map((range) => {
+                      const rangeMap: Record<string, TimeRange> = {
+                        '24h': '24h',
+                        '1W': '7d',
+                        '1M': '30d',
+                        '1Y': '1y',
+                        'All': '5y',
+                      };
+                      const isActive = timeRange === rangeMap[range];
+                      return (
+                        <button
+                          key={range}
+                          onClick={() => setTimeRange(rangeMap[range])}
+                          className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                            isActive
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {range}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsLogScale(!isLogScale)}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                        isLogScale
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Log
+                    </button>
+                    <button
+                      onClick={() => setIsFullscreen(!isFullscreen)}
+                      className="p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
+                      title="Fullscreen"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                      </svg>
+                    </button>
+                    <button className="p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Chart */}
+                {chartData.priceData && chartData.priceData.length > 0 ? (
+                  <div className="relative">
+                    {isFullscreen && (
+                      <div className="fixed inset-0 bg-white z-50 p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <h2 className="text-xl font-bold text-gray-900">{coin?.name} Fiyat Grafiği</h2>
+                          <button
+                            onClick={() => setIsFullscreen(false)}
+                            className="p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
                           >
-                            <option value="usd">USD</option>
-                            <option value="try">TRY</option>
-                          </select>
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
                         </div>
-                      </div>
-                      <div className="mt-6 p-6 bg-blue-50 rounded-xl">
-                        <div className="text-sm text-gray-600 mb-2">Sonuç:</div>
-                        <div className="text-4xl font-bold text-gray-900">
-                          {converterCurrency === 'usd'
-                            ? formatCurrency(parseFloat(converterAmount || '0') * coinDetails.prices.usd)
-                            : formatCurrencyTRY(parseFloat(converterAmount || '0') * coinDetails.prices.try)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Bilgi */}
-                {expandedBlock === 'info' && (
-                  <div className="space-y-6">
-                    {coinDetails.links.homepage && (
-                      <div className="bg-gray-50 rounded-xl p-6">
-                        <div className="text-sm text-gray-600 mb-2">İnternet Sitesi</div>
-                        <a
-                          href={coinDetails.links.homepage}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-lg font-semibold break-all"
-                        >
-                          {coinDetails.links.homepage}
-                        </a>
-                      </div>
-                    )}
-                    {coinDetails.links.blockchainExplorers.length > 0 && (
-                      <div className="bg-gray-50 rounded-xl p-6">
-                        <div className="text-sm text-gray-600 mb-4">Blockchain Tarayıcılar</div>
-                        <div className="flex flex-wrap gap-3">
-                          {coinDetails.links.blockchainExplorers.map((explorer, idx) => (
-                            <a
-                              key={idx}
-                              href={explorer}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-4 py-2 bg-white hover:bg-gray-100 rounded-lg text-sm text-gray-700 transition-colors"
-                            >
-                              {explorer.replace(/^https?:\/\//, '').replace(/\/$/, '').split('/')[0]}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {coinDetails.links.github && (
-                      <div className="bg-gray-50 rounded-xl p-6">
-                        <div className="text-sm text-gray-600 mb-2">GitHub</div>
-                        <a
-                          href={coinDetails.links.github}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-lg font-semibold break-all"
-                        >
-                          {coinDetails.links.github}
-                        </a>
-                      </div>
-                    )}
-                    {coinDetails.marketData.marketCapRank && (
-                      <div className="bg-blue-50 rounded-xl p-4">
-                        <div className="text-sm text-blue-800">
-                          <strong>Piyasa Değeri Sıralaması:</strong> #{coinDetails.marketData.marketCapRank}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Topluluk Duygu Anketi */}
-                {expandedBlock === 'sentiment' && (
-                  <div className="space-y-6">
-                    <div className="bg-gray-50 rounded-xl p-6">
-                      <p className="text-base text-gray-700 mb-6">
-                        Topluluk bugün {coin.name} ({coin.symbol.toUpperCase()}) kripto parasının{' '}
-                        {coin.price_change_percentage_24h >= 0 ? 'yükseleceğini' : 'düşeceğini'} düşünüyor.
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <button className="p-6 bg-white rounded-xl hover:bg-green-50 transition-all text-center shadow-lg">
-                          <div className="text-5xl mb-3">🚀</div>
-                          <div className="text-4xl font-bold text-gray-900 mb-2">81%</div>
-                          <div className="text-lg text-gray-600">Yükseliş</div>
-                        </button>
-                        <button className="p-6 bg-white rounded-xl hover:bg-red-50 transition-all text-center shadow-lg">
-                          <div className="text-5xl mb-3">👎</div>
-                          <div className="text-4xl font-bold text-gray-900 mb-2">39%</div>
-                          <div className="text-lg text-gray-600">Düşüş</div>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Coin Hakkında */}
-                {expandedBlock === 'about' && coinDetails.description && (
-                  <div className="space-y-6">
-                    <div className="bg-gray-50 rounded-xl p-6">
-                      <div className="text-base text-gray-700 leading-relaxed">
-                        <div
-                          dangerouslySetInnerHTML={{
-                            __html: coinDetails.description
-                              .split('\n')
-                              .map((para) => `<p class="mb-4">${para}</p>`)
-                              .join(''),
-                          }}
+                        <PriceChart
+                          data={chartData.priceData}
+                          width={typeof window !== 'undefined' ? window.innerWidth - 48 : 1200}
+                          height={typeof window !== 'undefined' ? window.innerHeight - 200 : 600}
+                          timeRange={timeRange}
                         />
                       </div>
-                    </div>
+                    )}
+                    <PriceChart
+                      data={chartData.priceData}
+                      width={1200}
+                      height={500}
+                      timeRange={timeRange}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-96 text-gray-500 bg-gray-50 rounded-lg">
+                    Grafik verisi yükleniyor...
                   </div>
                 )}
               </div>
+
+              {/* CMC AI Section */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-gray-900">CMC Yapay Zeka</h3>
+                  <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button className="px-4 py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 text-sm font-medium rounded-lg transition-colors">
+                    BTC çıkışlarına hangi ETF&apos;ler öncülük etti?
+                  </button>
+                  <button className="px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 text-sm font-medium rounded-lg transition-colors">
+                    BTC&apos;nin gelecekteki fiyatını ne etkileyebilir?
+                  </button>
+                  <button className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm font-medium rounded-lg transition-colors">
+                    İnsanlar BTC hakkında ne söylüyor?
+                  </button>
+                  <button className="px-4 py-2 text-gray-600 hover:text-gray-900 text-sm font-medium rounded-lg flex items-center gap-1 transition-colors">
+                    Daha Fazla
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Markets Table */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">{coin?.name} Piyasalar</h3>
+                  <button className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                    Filtreler
+                  </button>
+                </div>
+
+                {/* Filter Tabs */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {(['ALL', 'CEX', 'DEX', 'Spot', 'Perpetual', 'Futures'] as const).map((filter) => (
+                    <button
+                      key={filter}
+                      onClick={() => setMarketFilter(filter)}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                        marketFilter === filter
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {filter}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Markets Table */}
+                <div className="overflow-x-auto">
+                  {marketsLoading ? (
+                    <div className="flex items-center justify-center h-64 text-gray-500">
+                      Markets yükleniyor...
+                    </div>
+                  ) : markets.length === 0 ? (
+                    <div className="flex items-center justify-center h-64 text-gray-500">
+                      Piyasa verisi bulunamadı
+                    </div>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200">
+                          <th className="text-left py-3 px-2 text-gray-600 font-medium">#</th>
+                          <th className="text-left py-3 px-2 text-gray-600 font-medium">Exchange</th>
+                          <th className="text-left py-3 px-2 text-gray-600 font-medium">Pair</th>
+                          <th className="text-right py-3 px-2 text-gray-600 font-medium">Price</th>
+                          <th className="text-right py-3 px-2 text-gray-600 font-medium">+2%/-2% Depth</th>
+                          <th className="text-right py-3 px-2 text-gray-600 font-medium">Volume (24h)</th>
+                          <th className="text-right py-3 px-2 text-gray-600 font-medium">Volume %</th>
+                          <th className="text-right py-3 px-2 text-gray-600 font-medium">Liquidity</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {markets
+                          .slice((marketPage - 1) * marketRowsPerPage, marketPage * marketRowsPerPage)
+                          .map((market, index) => (
+                            <tr key={`${market.exchange}-${market.pair}-${index}`} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-3 px-2 text-gray-600">{(marketPage - 1) * marketRowsPerPage + index + 1}</td>
+                              <td className="py-3 px-2">
+                                <div className="flex items-center gap-2">
+                                  {market.logo ? (
+                                    <img
+                                      src={market.logo}
+                                      alt={market.exchange}
+                                      className="w-6 h-6 rounded-full object-cover"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
+                                  )}
+                                  <span className="text-gray-900 font-medium">{market.exchange}</span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-2">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-900">{market.pair}</span>
+                                  <a
+                                    href={`https://www.coingecko.com/en/exchanges/${market.exchange.toLowerCase().replace(/\s+/g, '-')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-gray-400 hover:text-gray-600"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                  </a>
+                                </div>
+                              </td>
+                              <td className="py-3 px-2 text-right text-gray-900 font-medium">
+                                {formatCurrency(market.price)}
+                              </td>
+                              <td className="py-3 px-2 text-right text-gray-600">
+                                {market.bidAskSpread ? (
+                                  <>
+                                    {formatCurrency(market.bidAskSpread.bid * 0.98)}/{formatCurrency(market.bidAskSpread.ask * 1.02)}
+                                  </>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-2 text-right text-green-600 font-medium">
+                                {formatCurrency(market.volume24h)}
+                              </td>
+                              <td className="py-3 px-2 text-right text-gray-600">
+                                {market.volumePercent.toFixed(2)}%
+                              </td>
+                              <td className="py-3 px-2 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+                                  </svg>
+                                  <span className="text-gray-600">{market.liquidity?.toFixed(2) || 'Bilinmiyor'}</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* Pagination */}
+                {!marketsLoading && markets.length > 0 && (
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div className="text-sm text-gray-600">
+                      {((marketPage - 1) * marketRowsPerPage) + 1} - {Math.min(marketPage * marketRowsPerPage, markets.length)} / {markets.length} gösteriliyor
+                    </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setMarketPage(Math.max(1, marketPage - 1))}
+                      disabled={marketPage === 1}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      &lt;
+                    </button>
+                    {(() => {
+                      const totalPages = Math.ceil(markets.length / marketRowsPerPage);
+                      const maxVisiblePages = 5;
+                      const pages: (number | string)[] = [];
+                      
+                      if (totalPages <= maxVisiblePages) {
+                        for (let i = 1; i <= totalPages; i++) {
+                          pages.push(i);
+                        }
+                      } else {
+                        if (marketPage <= 3) {
+                          for (let i = 1; i <= 4; i++) {
+                            pages.push(i);
+                          }
+                          pages.push('...');
+                          pages.push(totalPages);
+                        } else if (marketPage >= totalPages - 2) {
+                          pages.push(1);
+                          pages.push('...');
+                          for (let i = totalPages - 3; i <= totalPages; i++) {
+                            pages.push(i);
+                          }
+                        } else {
+                          pages.push(1);
+                          pages.push('...');
+                          for (let i = marketPage - 1; i <= marketPage + 1; i++) {
+                            pages.push(i);
+                          }
+                          pages.push('...');
+                          pages.push(totalPages);
+                        }
+                      }
+                      
+                      return pages.map((page, idx) => {
+                        if (page === '...') {
+                          return <span key={`ellipsis-${idx}`} className="px-2 text-gray-600">...</span>;
+                        }
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => setMarketPage(page as number)}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                              marketPage === page
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      });
+                    })()}
+                    <button
+                      onClick={() => {
+                        const totalPages = Math.ceil(markets.length / marketRowsPerPage);
+                        setMarketPage(Math.min(totalPages, marketPage + 1));
+                      }}
+                      disabled={marketPage >= Math.ceil(markets.length / marketRowsPerPage)}
+                      className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      &gt;
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Satır göster</span>
+                    <select
+                      value={marketRowsPerPage}
+                      onChange={(e) => {
+                        setMarketRowsPerPage(Number(e.target.value));
+                        setMarketPage(1);
+                      }}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                  </div>
+                )}
+                  </div>
+                </div>
+
+              </div>
+
+          {/* Sağ Blok - Community Sentiment */}
+          <div className="lg:col-span-1 bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col">
+            <div className="overflow-y-auto flex-1 p-6 space-y-6">
+              {/* Community Sentiment Section */}
+              <div className="space-y-4">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Community sentiment</h3>
+                    <p className="text-sm text-gray-600">{formatNumber(sentimentVotes)} votes</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setSentimentPage(Math.max(1, sentimentPage - 1))}
+                      disabled={sentimentPage === 1}
+                      className="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <span className="text-sm text-gray-600">{sentimentPage}/{sentimentTotalPages}</span>
+                    <button
+                      onClick={() => setSentimentPage(Math.min(sentimentTotalPages, sentimentPage + 1))}
+                      disabled={sentimentPage === sentimentTotalPages}
+                      className="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sentiment Bar */}
+                <div className="relative w-full h-8 bg-gray-200 rounded-lg overflow-hidden">
+                  <div className="absolute left-0 top-0 h-full bg-green-500 flex items-center justify-start pl-2" style={{ width: `${sentimentBullish}%` }}>
+                    <span className="text-white text-sm font-semibold">{sentimentBullish}%</span>
+                  </div>
+                  <div className="absolute right-0 top-0 h-full bg-red-500 flex items-center justify-end pr-2" style={{ width: `${sentimentBearish}%` }}>
+                    <span className="text-white text-sm font-semibold">{sentimentBearish}%</span>
+                  </div>
+                </div>
+
+                {/* Sentiment Buttons */}
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={async () => {
+                      try {
+                        const storedUser = localStorage.getItem('currentUser');
+                        if (!storedUser) {
+                          setToast({ message: 'Lütfen önce giriş yapın', visible: true });
+                          setTimeout(() => setToast({ message: '', visible: false }), 3000);
+                          return;
+                        }
+                        
+                        // Client-side olarak sentiment güncelle (gerçek uygulamada API'ye kaydedilebilir)
+                        const currentBullishVotes = Math.round((sentimentBullish / 100) * sentimentVotes);
+                        const newBullishVotes = currentBullishVotes + 1;
+                        const newTotal = sentimentVotes + 1;
+                        const newBullishPercent = Math.round((newBullishVotes / newTotal) * 100);
+                        const newBearishPercent = 100 - newBullishPercent;
+                        
+                        setSentimentBullish(newBullishPercent);
+                        setSentimentBearish(newBearishPercent);
+                        setSentimentVotes(newTotal);
+                        
+                        setToast({ message: 'Yükseliş oyu eklendi!', visible: true });
+                        setTimeout(() => setToast({ message: '', visible: false }), 3000);
+                      } catch (error) {
+                        console.error('Error voting bullish:', error);
+                        setToast({ message: 'Oy verilirken hata oluştu', visible: true });
+                        setTimeout(() => setToast({ message: '', visible: false }), 3000);
+                      }
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg font-medium transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                    Yükseliş
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      try {
+                        const storedUser = localStorage.getItem('currentUser');
+                        if (!storedUser) {
+                          setToast({ message: 'Lütfen önce giriş yapın', visible: true });
+                          setTimeout(() => setToast({ message: '', visible: false }), 3000);
+                          return;
+                        }
+                        
+                        // Client-side olarak sentiment güncelle (gerçek uygulamada API'ye kaydedilebilir)
+                        const currentBearishVotes = Math.round((sentimentBearish / 100) * sentimentVotes);
+                        const newBearishVotes = currentBearishVotes + 1;
+                        const newTotal = sentimentVotes + 1;
+                        const newBearishPercent = Math.round((newBearishVotes / newTotal) * 100);
+                        const newBullishPercent = 100 - newBearishPercent;
+                        
+                        setSentimentBullish(newBullishPercent);
+                        setSentimentBearish(newBearishPercent);
+                        setSentimentVotes(newTotal);
+                        
+                        setToast({ message: 'Düşüş oyu eklendi!', visible: true });
+                        setTimeout(() => setToast({ message: '', visible: false }), 3000);
+                      } catch (error) {
+                        console.error('Error voting bearish:', error);
+                        setToast({ message: 'Oy verilirken hata oluştu', visible: true });
+                        setTimeout(() => setToast({ message: '', visible: false }), 3000);
+                      }
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6 6" />
+                    </svg>
+                    Düşüş
+                  </button>
+                </div>
+              </div>
+
+              {/* Post Feed Tabs */}
+              <div className="flex items-center gap-2 border-b border-gray-200">
+                <button
+                  onClick={() => setPostFeedTab('Top')}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${
+                    postFeedTab === 'Top'
+                      ? 'text-gray-900 border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  En İyi
+                </button>
+                <button
+                  onClick={() => setPostFeedTab('Latest')}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${
+                    postFeedTab === 'Latest'
+                      ? 'text-gray-900 border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  En Son
+                </button>
+              </div>
+
+              {/* Post Feed */}
+              <div className="space-y-4">
+                {postsLoading ? (
+                  <div className="flex items-center justify-center h-32 text-gray-500">
+                    Yükleniyor...
+                  </div>
+                ) : communityPosts.length === 0 ? (
+                  <div className="flex items-center justify-center h-32 text-gray-500">
+                    Henüz post yok
+                  </div>
+                ) : (
+                  communityPosts.map((post) => (
+                    <div key={post.id} className="border-b border-gray-100 pb-4 last:border-b-0">
+                      {/* User Info */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          {post.profile_picture_url ? (
+                            <img
+                              src={post.profile_picture_url}
+                              alt={post.user_name}
+                              className="w-8 h-8 rounded-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                              <span className="text-gray-500 text-xs">{post.user_name?.[0]?.toUpperCase() || 'U'}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm font-semibold text-gray-900">{post.user_name}</span>
+                            {post.is_verified && (
+                              <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M6.267 3.455a3.001 3.001 0 011.709-1.709L8 1.586a1 1 0 011.414 0l1.154.293a3 3 0 011.709 1.709L12.414 4a1 1 0 010 1.414l-.293 1.154a3 3 0 01-1.709 1.709L10.586 8a1 1 0 01-1.414 0l-1.154-.293a3 3 0 01-1.709-1.709L6 5.586a1 1 0 010-1.414l.293-1.154zM10 10a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                                <path d="M2 10a8 8 0 018-8v8a8 8 0 11-16 0zm8-6a6 6 0 100 12A6 6 0 0010 4z" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className="text-xs text-gray-500">{formatPostDate(post.created_at)}</span>
+                        </div>
+                        <button className="px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+                          + Follow
+                        </button>
+                      </div>
+
+                      {/* Post Content */}
+                      <div className="mb-3">
+                        <p className="text-sm text-gray-900 whitespace-pre-wrap">{post.content_text}</p>
+                        {post.image_url && (
+                          <div className="mt-2 w-full h-48 bg-gray-100 rounded-lg overflow-hidden">
+                            <img
+                              src={post.image_url}
+                              alt="Post"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Reactions */}
+                      <div className="flex items-center gap-4 flex-wrap mb-2">
+                        <button className="flex items-center gap-1 text-green-600 hover:text-green-700 transition-colors">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                          </svg>
+                          <span className="text-xs font-medium">{post.bullish_count || 0}</span>
+                        </button>
+                        <button className="flex items-center gap-1 text-red-500 hover:text-red-600 transition-colors">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-xs font-medium">{post.like_count || 0}</span>
+                        </button>
+                        <button className="flex items-center gap-1 text-orange-500 hover:text-orange-600 transition-colors">
+                          <span className="text-xs">🔥</span>
+                          <span className="text-xs font-medium">10</span>
+                        </button>
+                        <button className="flex items-center gap-1 text-blue-500 hover:text-blue-600 transition-colors">
+                          <span className="text-xs">🐋</span>
+                          <span className="text-xs font-medium">2</span>
+                        </button>
+                        <button className="flex items-center gap-1 text-green-500 hover:text-green-600 transition-colors">
+                          <span className="text-xs">🐢</span>
+                          <span className="text-xs font-medium">2</span>
+                        </button>
+                        <button className="flex items-center gap-1 text-yellow-500 hover:text-yellow-600 transition-colors">
+                          <span className="text-xs">👷</span>
+                          <span className="text-xs font-medium">2</span>
+                        </button>
+                        <button className="flex items-center gap-1 text-red-600 hover:text-red-700 transition-colors">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                          </svg>
+                          <span className="text-xs font-medium">{post.bearish_count || 0}</span>
+                        </button>
+                      </div>
+
+                      {/* Engagement Metrics */}
+                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <div className="flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          <span>{formatNumber(post.view_count || 0)}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
+                          <span>{post.comment_count || 0}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          <span>{post.share_count || 0}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          <span>{post.like_count || 0}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Post Input */}
+              <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-200">
+                <div className="flex items-center gap-3">
+                  {typeof window !== 'undefined' && localStorage.getItem('currentUser') ? (
+                    (() => {
+                      try {
+                        const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                        return user.profile_picture_url ? (
+                          <img
+                            src={user.profile_picture_url}
+                            alt={user.name || 'User'}
+                            className="w-8 h-8 rounded-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                            <span className="text-gray-500 text-xs">{(user.name || user.full_name || 'U')[0]?.toUpperCase()}</span>
+                          </div>
+                        );
+                      } catch {
+                        return (
+                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                            <span className="text-gray-500 text-xs">U</span>
+                          </div>
+                        );
+                      }
+                    })()
+                  ) : (
+                    <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                      <span className="text-gray-500 text-xs">U</span>
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    value={newPostText}
+                    onChange={(e) => setNewPostText(e.target.value)}
+                    placeholder={`${coin?.symbol.toUpperCase() || 'BTC'} How do you feel today?`}
+                    className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !posting && newPostText.trim()) {
+                        handlePostSubmit();
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={handlePostSubmit}
+                    disabled={posting || !newPostText.trim()}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {posting ? 'Paylaşılıyor...' : 'Paylaş'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        )}
-
-        {/* Footer */}
-        <footer className="bg-white px-4 py-12 mt-6">
-          <div className="w-full">
-            {/* Üst Kısım - Logo ve Açıklama */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
-              {/* Sol Taraf - Logo ve Açıklama */}
-              <div className="lg:col-span-2">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-2xl font-bold text-gray-900 lowercase">cripto</span>
-                </div>
-                <p className="text-sm text-gray-600 mb-4">
-                  Dijital Marketim, kripto piyasasına dair temel bir analiz sağlar. Dijital Marketim; fiyatı, hacmi ve piyasa değerini takip etmenin yanı sıra topluluk büyümesini, açık kaynak kod geliştirmeyi, önemli olayları ve zincir üstü metrikleri takip eder.
-                </p>
-              </div>
-
-              {/* Sağ Taraf - Link Sütunları */}
-              <div className="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-8">
-                {/* Kaynaklar */}
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 mb-4">Kaynaklar</h3>
-                  <ul className="space-y-2">
-                    <li>
-                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Kripto Haberleri</a>
-                    </li>
-                    <li>
-                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Kripto Para Hazine Rezervleri</a>
-                    </li>
-                    <li>
-                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Kripto Isı Haritası</a>
-                    </li>
-                    <li>
-                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Kripto API&apos;si</a>
-                    </li>
-                  </ul>
-                </div>
-
-                {/* Destek */}
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 mb-4">Destek</h3>
-                  <ul className="space-y-2">
-                    <li>
-                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">İletişim Formu</a>
-                    </li>
-                    <li>
-                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Reklam</a>
-                    </li>
-                    <li>
-                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Yardım Merkezi</a>
-                    </li>
-                    <li>
-                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">SSS</a>
-                    </li>
-                  </ul>
-                </div>
-
-                {/* Cripto Hakkında */}
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 mb-4">Cripto Hakkında</h3>
-                  <ul className="space-y-2">
-                    <li>
-                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Hakkımızda</a>
-                    </li>
-                    <li>
-                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Metodoloji</a>
-                    </li>
-                    <li>
-                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Gizlilik Politikası</a>
-                    </li>
-                  </ul>
-                </div>
-
-                {/* Topluluk */}
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 mb-4">Topluluk</h3>
-                  <ul className="space-y-2">
-                    <li>
-                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">X/Twitter</a>
-                    </li>
-                    <li>
-                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Telegram</a>
-                    </li>
-                    <li>
-                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Reddit</a>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Alt Kısım - Copyright */}
-            <div className="pt-8">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
-                <div className="text-sm text-gray-600">
-                  © 2025 Cripto. All Rights Reserved.
-                </div>
-              </div>
-
-              {/* Önemli Uyarı */}
-              <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-                <h4 className="text-sm font-bold text-gray-900 mb-2">ÖNEMLİ UYARI</h4>
-                <p className="text-xs text-gray-600 leading-relaxed">
-                  Bu web sitesinde, bağlantılı sitelerde, uygulamalarda, forumlarda, bloglarda, sosyal medya hesaplarında ve diğer platformlarda (birlikte &quot;Site&quot;) yer alan içerikler, yalnızca genel bilgilendirme amaçlıdır ve üçüncü taraflardan kaynaklanmaktadır. Bu içeriklerin doğruluğu, eksiksizliği, güncelliği veya güvenilirliği konusunda hiçbir garanti verilmemektedir. Herhangi bir yatırım kararı vermeden önce, kendi araştırmanızı yapmanız ve bağımsız profesyonel tavsiye almanız önerilir. Ticaret risklidir ve kayıplar meydana gelebilir. Bu sitede yer alan hiçbir içerik, teşvik, tavsiye veya teklif niteliği taşımamaktadır.
-                </p>
-              </div>
-            </div>
-          </div>
-        </footer>
+        </div>
       </div>
 
       {/* Toast Notification */}
       {toast.visible && (
         <div className="fixed bottom-12 right-4 z-50 animate-slide-in-right">
           <div className="bg-[#2563EB] text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px]">
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
@@ -1454,15 +1952,209 @@ const CoinDetailPage: React.FC = () => {
             </div>
             <button
               onClick={() => setToast({ message: '', visible: false })}
-              className="flex-shrink-0 text-white/80 hover:text-white transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              className="shrink-0 text-white/80 hover:text-white transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+              </svg>
             </button>
+          </div>
         </div>
-      </div>
       )}
+
+      {/* About Section - Scroll edildiğinde görünür */}
+      {coinDetails && coinDetails.description && (
+        <div className="w-full px-4 py-8 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <div className="space-y-4">
+              <h3 className="text-2xl font-bold text-gray-900">Hakkında {coin?.name}</h3>
+              <div className="bg-white rounded-lg p-6 border border-gray-200">
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                  {coinDetails.description.length > 500 
+                    ? `${coinDetails.description.substring(0, 500)}...` 
+                    : coinDetails.description}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-200 px-4 py-12 mt-12">
+        <div className="w-full">
+          {/* Üst Kısım - Logo ve Açıklama */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
+            {/* Sol Taraf - Logo ve Açıklama */}
+            <div className="lg:col-span-2">
+              <div className="flex items-center gap-2 mb-4">
+                <Image 
+                  src={logoImage}
+                  alt="Dijital Market Logo" 
+                  height={64}
+                  width={250}
+                  className="h-16 w-auto object-contain"
+                />
+              </div>
+              <p className="text-sm text-gray-600 mb-4">
+                Dijital Marketim, kripto piyasasına dair temel bir analiz sağlar. Dijital Marketim; fiyatı, hacmi ve piyasa değerini takip etmenin yanı sıra topluluk büyümesini, açık kaynak kod geliştirmeyi, önemli olayları ve zincir üstü metrikleri takip eder.
+              </p>
+            </div>
+
+            {/* Sağ Taraf - Link Sütunları */}
+            <div className="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-8">
+              {/* Kaynaklar */}
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 mb-4">Kaynaklar</h3>
+                <ul className="space-y-2">
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Kripto Haberleri</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Kripto Para Hazine Rezervleri</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Kripto Isı Haritası</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Kripto API&apos;si</a>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Destek */}
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 mb-4">Destek</h3>
+                <ul className="space-y-2">
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">İletişim Formu</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Reklam</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Şeker Ödülleri Listelemesi</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Yardım Merkezi</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Hata Ödülü</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">SSS</a>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Cripto Hakkında */}
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 mb-4">Cripto Hakkında</h3>
+                <ul className="space-y-2">
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Hakkımızda</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-green-600 hover:text-green-700 transition-colors font-semibold">Kariyer <span className="text-xs">(Bize Katılın)</span></a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Markalama Rehberi</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Metodoloji</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Feragatname</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Hizmet Koşulları</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Gizlilik Politikası</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Reklam Politikası</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Çerez Tercihleri</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Güven Merkezi</a>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Topluluk */}
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 mb-4">Topluluk</h3>
+                <ul className="space-y-2">
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">X/Twitter</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Telegram Sohbeti</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Telegram Haberleri</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Instagram</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Reddit</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Discord</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Facebook</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">YouTube</a>
+                  </li>
+                  <li>
+                    <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">TikTok</a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Bülten Aboneliği */}
+          <div className="bg-gray-50 rounded-lg p-6 mb-8">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                  Kripto paralar hakkında devamlı güncel bilgiye sahip olmak ister misiniz?
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Ücretsiz bültenimize abone olarak en son kripto para haberlerini, güncellemeleri ve raporları alın.
+                </p>
+              </div>
+              <button className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-medium px-6 py-3 rounded-lg transition-colors whitespace-nowrap">
+                Abone Ol
+              </button>
+            </div>
+          </div>
+
+          {/* Alt Kısım - Copyright ve App Store */}
+          <div className="border-t border-gray-200 pt-8">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+              <div className="text-sm text-gray-600">
+                © 2025 Cripto. All Rights Reserved.
+              </div>
+            </div>
+
+            {/* Önemli Uyarı */}
+            <div className="mt-8 p-4 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-bold text-gray-900 mb-2">ÖNEMLİ UYARI</h4>
+              <p className="text-xs text-gray-600 leading-relaxed">
+                Bu web sitesinde, bağlantılı sitelerde, uygulamalarda, forumlarda, bloglarda, sosyal medya hesaplarında ve diğer platformlarda (birlikte &quot;Site&quot;) yer alan içerikler, yalnızca genel bilgilendirme amaçlıdır ve üçüncü taraflardan kaynaklanmaktadır. Bu içeriklerin doğruluğu, eksiksizliği, güncelliği veya güvenilirliği konusunda hiçbir garanti verilmemektedir. Herhangi bir yatırım kararı vermeden önce, kendi araştırmanızı yapmanız ve bağımsız profesyonel tavsiye almanız önerilir. Ticaret risklidir ve kayıplar meydana gelebilir. Bu sitede yer alan hiçbir içerik, teşvik, tavsiye veya teklif niteliği taşımamaktadır.
+              </p>
+            </div>
+          </div>
+        </div>
+      </footer>
 
       {/* Market Stats Bar - Fixed at Bottom */}
       <MarketStatsBar marketStats={marketStats} />

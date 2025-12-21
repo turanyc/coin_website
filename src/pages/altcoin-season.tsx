@@ -36,6 +36,8 @@ const AltcoinSeasonPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedTimeframe, setSelectedTimeframe] = useState<string>('1M');
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>('what-is');
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [tooltipData, setTooltipData] = useState<{ x: number; y: number; value: number; date: string } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -263,7 +265,7 @@ const AltcoinSeasonPage: React.FC = () => {
 
             {/* Right Column - Chart */}
             <div className="lg:col-span-2">
-              <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <div className="bg-white border border-gray-200 rounded-xl p-6 relative">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-2xl font-bold text-gray-900">Altcoin Sezonu Endeksi Grafiği</h2>
                   <div className="flex gap-1">
@@ -289,34 +291,71 @@ const AltcoinSeasonPage: React.FC = () => {
                     ))}
                   </div>
                 </div>
-                <div className="w-full overflow-x-auto">
-                  <svg width={chartWidth} height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-auto">
+                <div className="w-full overflow-x-auto relative">
+                  <svg 
+                    width={chartWidth} 
+                    height={chartHeight} 
+                    viewBox={`0 0 ${chartWidth} ${chartHeight}`} 
+                    className="w-full h-auto"
+                    onMouseMove={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = e.clientX - rect.left;
+                      const y = e.clientY - rect.top;
+                      
+                      let closestIndex = 0;
+                      let minDistance = Infinity;
+                      chartData.forEach((d, i) => {
+                        const dataX = getX(i);
+                        const distance = Math.abs(x - dataX);
+                        if (distance < minDistance) {
+                          minDistance = distance;
+                          closestIndex = i;
+                        }
+                      });
+                      
+                      const point = chartData[closestIndex];
+                      const pointX = getX(closestIndex);
+                      const pointY = getIndexY(point.altcoinSeasonIndex);
+                      
+                      setTooltipData({
+                        x: pointX,
+                        y: pointY,
+                        value: point.altcoinSeasonIndex,
+                        date: point.date,
+                      });
+                    }}
+                    onMouseLeave={() => setTooltipData(null)}
+                    onClick={(e) => {
+                      if (!isFullscreen) {
+                        setIsFullscreen(true);
+                      }
+                    }}
+                  >
                     <defs>
-                      <linearGradient id="bitcoinSeasonGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#F97316" stopOpacity="0.2" />
-                        <stop offset="75%" stopColor="#F97316" stopOpacity="0.05" />
-                        <stop offset="100%" stopColor="#F97316" stopOpacity="0" />
+                      {/* Glowing green line gradient */}
+                      <linearGradient id="altcoinLineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#10B981" stopOpacity="1" />
+                        <stop offset="100%" stopColor="#10B981" stopOpacity="0.3" />
                       </linearGradient>
-                      <linearGradient id="altcoinSeasonGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.05" />
-                        <stop offset="25%" stopColor="#3B82F6" stopOpacity="0.2" />
-                        <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.2" />
+                      {/* Area gradient fill */}
+                      <linearGradient id="altcoinAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#10B981" stopOpacity="0.4" />
+                        <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
                       </linearGradient>
+                      {/* Glow filter */}
+                      <filter id="altcoinGlow">
+                        <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                        <feMerge>
+                          <feMergeNode in="coloredBlur"/>
+                          <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                      </filter>
                     </defs>
                     
-                    {/* Background regions */}
-                    <rect x={paddingLeft} y={paddingTop} width={plotWidth} height={plotHeight * 0.75} fill="url(#bitcoinSeasonGradient)" />
-                    <rect x={paddingLeft} y={paddingTop + plotHeight * 0.25} width={plotWidth} height={plotHeight * 0.75} fill="url(#altcoinSeasonGradient)" />
+                    {/* White background */}
+                    <rect x={paddingLeft} y={paddingTop} width={plotWidth} height={plotHeight} fill="#FFFFFF" />
                     
-                    {/* Region labels */}
-                    <text x={paddingLeft + plotWidth / 2} y={paddingTop + plotHeight * 0.15} textAnchor="middle" className="text-xs fill-gray-500 font-medium">
-                      Bitcoin Sezonu
-                    </text>
-                    <text x={paddingLeft + plotWidth / 2} y={paddingTop + plotHeight * 0.85} textAnchor="middle" className="text-xs fill-gray-500 font-medium">
-                      Altcoin Sezonu
-                    </text>
-
-                    {/* Left Y-axis - Index (0-100) */}
+                    {/* Subtle grid lines */}
                     {[0, 25, 50, 75, 100].map((value) => {
                       const y = getIndexY(value);
                       return (
@@ -328,41 +367,16 @@ const AltcoinSeasonPage: React.FC = () => {
                             y2={y}
                             stroke="#E5E7EB"
                             strokeWidth="1"
-                            strokeDasharray="4 4"
+                            strokeDasharray="2 2"
+                            opacity="0.5"
                           />
                           <text
                             x={paddingLeft - 10}
                             y={y + 4}
                             textAnchor="end"
-                            className="text-xs fill-gray-700 font-semibold"
+                            className="text-xs fill-gray-600 font-medium"
                           >
                             {value}
-                          </text>
-                        </g>
-                      );
-                    })}
-
-                    {/* Right Y-axis - Market Cap */}
-                    {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-                      const y = paddingTop + plotHeight - (ratio * plotHeight);
-                      const value = marketCapMin + marketCapRange * (1 - ratio);
-                      return (
-                        <g key={ratio}>
-                          <line
-                            x1={paddingLeft + plotWidth}
-                            y1={y}
-                            x2={paddingLeft + plotWidth + 5}
-                            y2={y}
-                            stroke="#9CA3AF"
-                            strokeWidth="1"
-                          />
-                          <text
-                            x={paddingLeft + plotWidth + 10}
-                            y={y + 4}
-                            textAnchor="start"
-                            className="text-xs fill-gray-700 font-semibold"
-                          >
-                            ${(value / 1e12).toFixed(1)}T
                           </text>
                         </g>
                       );
@@ -374,7 +388,7 @@ const AltcoinSeasonPage: React.FC = () => {
                       y1={paddingTop + plotHeight}
                       x2={paddingLeft + plotWidth}
                       y2={paddingTop + plotHeight}
-                      stroke="#D1D5DB"
+                      stroke="#E5E7EB"
                       strokeWidth="2"
                     />
 
@@ -391,15 +405,15 @@ const AltcoinSeasonPage: React.FC = () => {
                             x1={x}
                             y1={paddingTop + plotHeight}
                             x2={x}
-                            y2={paddingTop + plotHeight + 8}
+                            y2={paddingTop + plotHeight + 5}
                             stroke="#9CA3AF"
-                            strokeWidth="2"
+                            strokeWidth="1"
                           />
                           <text
                             x={x}
-                            y={paddingTop + plotHeight + 25}
+                            y={paddingTop + plotHeight + 20}
                             textAnchor="middle"
-                            className="text-xs fill-gray-700 font-semibold"
+                            className="text-xs fill-gray-600 font-medium"
                           >
                             {dateStr}
                           </text>
@@ -407,57 +421,325 @@ const AltcoinSeasonPage: React.FC = () => {
                       );
                     })}
 
-                    {/* Altcoin Season Index line */}
+                    {/* Area fill with gradient */}
+                    <path
+                      d={`M ${paddingLeft} ${paddingTop + plotHeight} ${chartData.map((d, i) => {
+                        const x = getX(i);
+                        const y = getIndexY(d.altcoinSeasonIndex);
+                        return `L ${x} ${y}`;
+                      }).join(' ')} L ${paddingLeft + plotWidth} ${paddingTop + plotHeight} Z`}
+                      fill="url(#altcoinAreaGradient)"
+                    />
+
+                    {/* Glowing green line */}
                     <polyline
                       points={indexLinePoints}
                       fill="none"
-                      stroke="#3B82F6"
+                      stroke="#10B981"
                       strokeWidth="3"
                       strokeLinecap="round"
                       strokeLinejoin="round"
+                      filter="url(#altcoinGlow)"
                     />
 
-                    {/* Altcoin Market Cap line */}
-                    <polyline
-                      points={marketCapLinePoints}
-                      fill="none"
-                      stroke="#6B7280"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      opacity="0.7"
-                    />
+                    {/* Interactive point indicator */}
+                    {tooltipData && (
+                      <g>
+                        <circle
+                          cx={tooltipData.x}
+                          cy={tooltipData.y}
+                          r="6"
+                          fill="#10B981"
+                          stroke="#FFFFFF"
+                          strokeWidth="2"
+                          filter="url(#altcoinGlow)"
+                        />
+                        <line
+                          x1={tooltipData.x}
+                          y1={paddingTop}
+                          x2={tooltipData.x}
+                          y2={paddingTop + plotHeight}
+                          stroke="#10B981"
+                          strokeWidth="1"
+                          strokeDasharray="4 4"
+                          opacity="0.5"
+                        />
+                      </g>
+                    )}
 
                     {/* Current value indicator */}
                     <circle
                       cx={getX(chartData.length - 1)}
                       cy={getIndexY(data.currentValue)}
                       r="6"
-                      fill="#3B82F6"
-                      stroke="#fff"
+                      fill="#10B981"
+                      stroke="#FFFFFF"
                       strokeWidth="2"
+                      filter="url(#altcoinGlow)"
                     />
-                    <text
-                      x={getX(chartData.length - 1) + 10}
-                      y={getIndexY(data.currentValue) - 5}
-                      className="text-xs fill-[#3B82F6] font-bold"
-                    >
-                      {data.currentValue}
-                    </text>
                   </svg>
+                  
+                  {/* Interactive Tooltip */}
+                  {tooltipData && (
+                    <div
+                      className="absolute bg-white border border-gray-300 rounded-lg p-3 shadow-xl pointer-events-none z-10"
+                      style={{
+                        left: `${(tooltipData.x / chartWidth) * 100}%`,
+                        top: `${((tooltipData.y - 30) / chartHeight) * 100}%`,
+                        transform: 'translate(-50%, -100%)',
+                      }}
+                    >
+                      <div className="text-xs text-gray-600 mb-1">
+                        {new Date(tooltipData.date).toLocaleDateString('tr-TR', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </div>
+                      <div className="text-lg font-bold text-gray-900">
+                        {tooltipData.value}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Fullscreen button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsFullscreen(true);
+                    }}
+                    className="absolute bottom-4 right-4 bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-lg transition-colors z-10"
+                    title="Tam Ekran"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                  </button>
                 </div>
                 <div className="flex items-center gap-6 mt-6 text-sm">
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-[#3B82F6] rounded shadow-sm"></div>
+                    <div className="w-4 h-4 bg-[#10B981] rounded shadow-sm"></div>
                     <span className="text-gray-700 font-medium">Altcoin Sezonu Endeksi</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-[#6B7280] rounded shadow-sm opacity-70"></div>
-                    <span className="text-gray-700 font-medium">Altcoin Piyasa Değeri</span>
                   </div>
                 </div>
               </div>
             </div>
+            
+            {/* Fullscreen Modal */}
+            {isFullscreen && (
+              <div 
+                className="fixed inset-0 bg-white z-50 flex items-center justify-center p-8"
+                onClick={() => setIsFullscreen(false)}
+              >
+                <div className="w-full h-full flex flex-col">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-2xl font-bold text-gray-900">Altcoin Sezonu Endeksi Grafiği - Tam Ekran</h2>
+                    <button
+                      onClick={() => setIsFullscreen(false)}
+                      className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-lg transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="flex-1 relative">
+                    <svg 
+                      width="100%" 
+                      height="100%" 
+                      viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                      preserveAspectRatio="xMidYMid meet"
+                      onMouseMove={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const y = e.clientY - rect.top;
+                        
+                        let closestIndex = 0;
+                        let minDistance = Infinity;
+                        chartData.forEach((d, i) => {
+                          const dataX = getX(i);
+                          const distance = Math.abs(x - dataX);
+                          if (distance < minDistance) {
+                            minDistance = distance;
+                            closestIndex = i;
+                          }
+                        });
+                        
+                        const point = chartData[closestIndex];
+                        const pointX = getX(closestIndex);
+                        const pointY = getIndexY(point.altcoinSeasonIndex);
+                        
+                        setTooltipData({
+                          x: pointX,
+                          y: pointY,
+                          value: point.altcoinSeasonIndex,
+                          date: point.date,
+                        });
+                      }}
+                      onMouseLeave={() => setTooltipData(null)}
+                    >
+                      <defs>
+                        <linearGradient id="altcoinLineGradientFull" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stopColor="#10B981" stopOpacity="1" />
+                          <stop offset="100%" stopColor="#10B981" stopOpacity="0.3" />
+                        </linearGradient>
+                        <linearGradient id="altcoinAreaGradientFull" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stopColor="#10B981" stopOpacity="0.4" />
+                          <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
+                        </linearGradient>
+                        <filter id="altcoinGlowFull">
+                          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                          <feMerge>
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                          </feMerge>
+                        </filter>
+                      </defs>
+                      
+                      <rect x={paddingLeft} y={paddingTop} width={plotWidth} height={plotHeight} fill="#FFFFFF" />
+                      
+                      {[0, 25, 50, 75, 100].map((value) => {
+                        const y = getIndexY(value);
+                        return (
+                          <g key={value}>
+                            <line
+                              x1={paddingLeft}
+                              y1={y}
+                              x2={paddingLeft + plotWidth}
+                              y2={y}
+                              stroke="#E5E7EB"
+                              strokeWidth="1"
+                              strokeDasharray="2 2"
+                              opacity="0.5"
+                            />
+                            <text
+                              x={paddingLeft - 10}
+                              y={y + 4}
+                              textAnchor="end"
+                              className="text-xs fill-gray-600 font-medium"
+                            >
+                              {value}
+                            </text>
+                          </g>
+                        );
+                      })}
+                      
+                      <line
+                        x1={paddingLeft}
+                        y1={paddingTop + plotHeight}
+                        x2={paddingLeft + plotWidth}
+                        y2={paddingTop + plotHeight}
+                        stroke="#E5E7EB"
+                        strokeWidth="2"
+                      />
+                      
+                      {chartData.map((d, i) => {
+                        const labelCount = 8;
+                        if (i % Math.ceil(chartData.length / labelCount) !== 0 && i !== chartData.length - 1) return null;
+                        const x = getX(i);
+                        const date = new Date(d.date);
+                        const dateStr = `${date.getDate()} ${date.toLocaleDateString('tr-TR', { month: 'short' })}${selectedTimeframe === 'All' || selectedTimeframe === '1Y' ? ' ' + date.getFullYear() : ''}`;
+                        return (
+                          <g key={i}>
+                            <line
+                              x1={x}
+                              y1={paddingTop + plotHeight}
+                              x2={x}
+                              y2={paddingTop + plotHeight + 5}
+                              stroke="#9CA3AF"
+                              strokeWidth="1"
+                            />
+                            <text
+                              x={x}
+                              y={paddingTop + plotHeight + 20}
+                              textAnchor="middle"
+                              className="text-xs fill-gray-600 font-medium"
+                            >
+                              {dateStr}
+                            </text>
+                          </g>
+                        );
+                      })}
+                      
+                      <path
+                        d={`M ${paddingLeft} ${paddingTop + plotHeight} ${chartData.map((d, i) => {
+                          const x = getX(i);
+                          const y = getIndexY(d.altcoinSeasonIndex);
+                          return `L ${x} ${y}`;
+                        }).join(' ')} L ${paddingLeft + plotWidth} ${paddingTop + plotHeight} Z`}
+                        fill="url(#altcoinAreaGradientFull)"
+                      />
+                      
+                      <polyline
+                        points={indexLinePoints}
+                        fill="none"
+                        stroke="#10B981"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        filter="url(#altcoinGlowFull)"
+                      />
+                      
+                      {tooltipData && (
+                        <g>
+                          <circle
+                            cx={tooltipData.x}
+                            cy={tooltipData.y}
+                            r="6"
+                            fill="#10B981"
+                            stroke="#FFFFFF"
+                            strokeWidth="2"
+                            filter="url(#altcoinGlowFull)"
+                          />
+                          <line
+                            x1={tooltipData.x}
+                            y1={paddingTop}
+                            x2={tooltipData.x}
+                            y2={paddingTop + plotHeight}
+                            stroke="#10B981"
+                            strokeWidth="1"
+                            strokeDasharray="4 4"
+                            opacity="0.5"
+                          />
+                        </g>
+                      )}
+                      
+                      <circle
+                        cx={getX(chartData.length - 1)}
+                        cy={getIndexY(data.currentValue)}
+                        r="6"
+                        fill="#10B981"
+                        stroke="#FFFFFF"
+                        strokeWidth="2"
+                        filter="url(#altcoinGlowFull)"
+                      />
+                    </svg>
+                    
+                    {tooltipData && (
+                      <div
+                        className="absolute bg-white border border-gray-300 rounded-lg p-3 shadow-xl pointer-events-none"
+                        style={{
+                          left: `${(tooltipData.x / chartWidth) * 100}%`,
+                          top: `${((tooltipData.y - 30) / chartHeight) * 100}%`,
+                          transform: 'translate(-50%, -100%)',
+                        }}
+                      >
+                        <div className="text-xs text-gray-600 mb-1">
+                          {new Date(tooltipData.date).toLocaleDateString('tr-TR', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </div>
+                        <div className="text-lg font-bold text-gray-900">
+                          {tooltipData.value}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -500,206 +782,311 @@ const AltcoinSeasonPage: React.FC = () => {
           </div>
         </div>
 
-        {/* About and Articles Sections - Side by Side */}
+        {/* About Section */}
         <div className="w-full px-4 mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* About Section */}
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">DM Altcoin Sezonu Endeksi Hakkında</h2>
-              <div className="space-y-4">
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                  <button
-                    onClick={() => setExpandedFAQ(expandedFAQ === 'what-is' ? null : 'what-is')}
-                    className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-6">DM Altcoin Sezonu Endeksi Hakkında</h2>
+            <div className="space-y-4">
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setExpandedFAQ(expandedFAQ === 'what-is' ? null : 'what-is')}
+                  className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                >
+                  <span className="text-lg font-semibold text-gray-900">DM Altcoin Sezonu Endeksi Nedir?</span>
+                  <svg
+                    className={`w-5 h-5 text-gray-600 transform transition-transform ${expandedFAQ === 'what-is' ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
-                    <span className="text-lg font-semibold text-gray-900">DM Altcoin Sezonu Endeksi Nedir?</span>
-                    <svg
-                      className={`w-5 h-5 text-gray-600 transform transition-transform ${expandedFAQ === 'what-is' ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {expandedFAQ === 'what-is' && (
-                    <div className="px-6 py-4 border-t border-gray-200">
-                      <p className="text-gray-600 leading-relaxed">
-                        DM Altcoin Sezonu Endeksi, son 90 günde en iyi 100 altcoinin Bitcoin&apos;e göre performansını ölçen bir göstergedir. 
-                        Endeks, 0 ile 100 arasında değer alır. 50&apos;nin altı Bitcoin Sezonu, 50&apos;nin üstü Altcoin Sezonu olarak kabul edilir.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                  <button
-                    onClick={() => setExpandedFAQ(expandedFAQ === 'how-tell' ? null : 'how-tell')}
-                    className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
-                  >
-                    <span className="text-lg font-semibold text-gray-900">Altcoin Sezonu Olduğunu Nasıl Anlarım?</span>
-                    <svg
-                      className={`w-5 h-5 text-gray-600 transform transition-transform ${expandedFAQ === 'how-tell' ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {expandedFAQ === 'how-tell' && (
-                    <div className="px-6 py-4 border-t border-gray-200">
-                      <p className="text-gray-600 leading-relaxed">
-                        Endeks değeri 50&apos;nin üzerine çıktığında Altcoin Sezonu başlamış demektir. Bu, altcoinlerin Bitcoin&apos;den daha iyi performans gösterdiği anlamına gelir. 
-                        Endeks 75&apos;in üzerine çıktığında güçlü bir Altcoin Sezonu yaşanıyor demektir.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                  <button
-                    onClick={() => setExpandedFAQ(expandedFAQ === 'which-altcoins' ? null : 'which-altcoins')}
-                    className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
-                  >
-                    <span className="text-lg font-semibold text-gray-900">Bu Endekste Hangi Altcoinler Kullanılıyor? Ethereum Bir Altcoin Mi?</span>
-                    <svg
-                      className={`w-5 h-5 text-gray-600 transform transition-transform ${expandedFAQ === 'which-altcoins' ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {expandedFAQ === 'which-altcoins' && (
-                    <div className="px-6 py-4 border-t border-gray-200">
-                      <p className="text-gray-600 leading-relaxed">
-                        Endeks, piyasa değerine göre en büyük 100 kripto parayı kullanır. Bitcoin hariç tüm coinler altcoin olarak kabul edilir, 
-                        bu yüzden Ethereum, Binance Coin, Solana ve diğer tüm Bitcoin dışı coinler altcoin kategorisindedir.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                  <button
-                    onClick={() => setExpandedFAQ(expandedFAQ === 'methodology' ? null : 'methodology')}
-                    className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
-                  >
-                    <span className="text-lg font-semibold text-gray-900">Endeks Metodolojisi Nedir?</span>
-                    <svg
-                      className={`w-5 h-5 text-gray-600 transform transition-transform ${expandedFAQ === 'methodology' ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {expandedFAQ === 'methodology' && (
-                    <div className="px-6 py-4 border-t border-gray-200">
-                      <p className="text-gray-600 leading-relaxed">
-                        Endeks, son 90 günde en iyi 100 coinin Bitcoin&apos;e göre performansını hesaplar. 
-                        Bitcoin&apos;den daha iyi performans gösteren altcoinlerin yüzdesi hesaplanır ve 0-100 arası bir değere dönüştürülür.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                  <button
-                    onClick={() => setExpandedFAQ(expandedFAQ === 'how-use' ? null : 'how-use')}
-                    className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
-                  >
-                    <span className="text-lg font-semibold text-gray-900">Bu Bilgiyi Nasıl Kullanabilirim?</span>
-                    <svg
-                      className={`w-5 h-5 text-gray-600 transform transition-transform ${expandedFAQ === 'how-use' ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {expandedFAQ === 'how-use' && (
-                    <div className="px-6 py-4 border-t border-gray-200">
-                      <p className="text-gray-600 leading-relaxed">
-                        Altcoin Sezonu sırasında altcoinlere yatırım yapmak daha karlı olabilir. Bitcoin Sezonu sırasında ise Bitcoin&apos;e odaklanmak mantıklı olabilir. 
-                        Ancak bu endeks sadece bir göstergedir ve yatırım tavsiyesi değildir.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Articles Section */}
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">DM Altcoin Sezonu Endeksi Makaleleri</h2>
-              <div className="space-y-4">
-                {[
-                  {
-                    category: 'DM Güncellemeleri',
-                    title: '2024 Yeni Token Listeleme Analizi',
-                    description: '2024 yılında listelenen yeni tokenlerin performans analizi ve altcoin sezonu üzerindeki etkileri.',
-                    author: 'DM',
-                    time: '1 ay önce',
-                    readTime: '3 dk',
-                  },
-                  {
-                    category: 'Piyasa Yorumları',
-                    title: 'Altcoin Sezonu: Yatırımcılar İçin Rehber',
-                    description: 'Altcoin sezonunun ne olduğu, nasıl tespit edileceği ve yatırım stratejileri hakkında kapsamlı bir rehber.',
-                    author: 'DM',
-                    time: '2 ay önce',
-                    readTime: '5 dk',
-                  },
-                  {
-                    category: 'Analiz',
-                    title: 'Bitcoin vs Altcoin: Performans Karşılaştırması',
-                    description: 'Bitcoin ve altcoinlerin tarihsel performans karşılaştırması ve sezon değişimlerinin analizi.',
-                    author: 'DM',
-                    time: '3 ay önce',
-                    readTime: '4 dk',
-                  },
-                ].map((article, index) => (
-                  <div key={index} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
-                    <div className="h-32 bg-gradient-to-br from-[#2563EB] to-[#1E40AF] flex items-center justify-center">
-                      <Image src={logoImage} alt="DM" width={60} height={60} />
-                    </div>
-                    <div className="p-4">
-                      <div className="text-xs font-semibold text-[#2563EB] mb-2">{article.category}</div>
-                      <h3 className="text-base font-bold text-gray-900 mb-2">{article.title}</h3>
-                      <p className="text-sm text-gray-600 mb-3">{article.description}</p>
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>{article.author}</span>
-                        <div className="flex items-center gap-2">
-                          <span>{article.time}</span>
-                          <span>•</span>
-                          <span>{article.readTime}</span>
-                        </div>
-                      </div>
-                    </div>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {expandedFAQ === 'what-is' && (
+                  <div className="px-6 py-4 border-t border-gray-200">
+                    <p className="text-gray-600 leading-relaxed">
+                      DM Altcoin Sezonu Endeksi, son 90 günde en iyi 100 altcoinin Bitcoin&apos;e göre performansını ölçen bir göstergedir. 
+                      Endeks, 0 ile 100 arasında değer alır. 50&apos;nin altı Bitcoin Sezonu, 50&apos;nin üstü Altcoin Sezonu olarak kabul edilir.
+                    </p>
                   </div>
-                ))}
+                )}
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setExpandedFAQ(expandedFAQ === 'how-tell' ? null : 'how-tell')}
+                  className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                >
+                  <span className="text-lg font-semibold text-gray-900">Altcoin Sezonu Olduğunu Nasıl Anlarım?</span>
+                  <svg
+                    className={`w-5 h-5 text-gray-600 transform transition-transform ${expandedFAQ === 'how-tell' ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {expandedFAQ === 'how-tell' && (
+                  <div className="px-6 py-4 border-t border-gray-200">
+                    <p className="text-gray-600 leading-relaxed">
+                      Endeks değeri 50&apos;nin üzerine çıktığında Altcoin Sezonu başlamış demektir. Bu, altcoinlerin Bitcoin&apos;den daha iyi performans gösterdiği anlamına gelir. 
+                      Endeks 75&apos;in üzerine çıktığında güçlü bir Altcoin Sezonu yaşanıyor demektir.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setExpandedFAQ(expandedFAQ === 'which-altcoins' ? null : 'which-altcoins')}
+                  className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                >
+                  <span className="text-lg font-semibold text-gray-900">Bu Endekste Hangi Altcoinler Kullanılıyor? Ethereum Bir Altcoin Mi?</span>
+                  <svg
+                    className={`w-5 h-5 text-gray-600 transform transition-transform ${expandedFAQ === 'which-altcoins' ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {expandedFAQ === 'which-altcoins' && (
+                  <div className="px-6 py-4 border-t border-gray-200">
+                    <p className="text-gray-600 leading-relaxed">
+                      Endeks, piyasa değerine göre en büyük 100 kripto parayı kullanır. Bitcoin hariç tüm coinler altcoin olarak kabul edilir, 
+                      bu yüzden Ethereum, Binance Coin, Solana ve diğer tüm Bitcoin dışı coinler altcoin kategorisindedir.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setExpandedFAQ(expandedFAQ === 'methodology' ? null : 'methodology')}
+                  className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                >
+                  <span className="text-lg font-semibold text-gray-900">Endeks Metodolojisi Nedir?</span>
+                  <svg
+                    className={`w-5 h-5 text-gray-600 transform transition-transform ${expandedFAQ === 'methodology' ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {expandedFAQ === 'methodology' && (
+                  <div className="px-6 py-4 border-t border-gray-200">
+                    <p className="text-gray-600 leading-relaxed">
+                      Endeks, son 90 günde en iyi 100 coinin Bitcoin&apos;e göre performansını hesaplar. 
+                      Bitcoin&apos;den daha iyi performans gösteren altcoinlerin yüzdesi hesaplanır ve 0-100 arası bir değere dönüştürülür.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setExpandedFAQ(expandedFAQ === 'how-use' ? null : 'how-use')}
+                  className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                >
+                  <span className="text-lg font-semibold text-gray-900">Bu Bilgiyi Nasıl Kullanabilirim?</span>
+                  <svg
+                    className={`w-5 h-5 text-gray-600 transform transition-transform ${expandedFAQ === 'how-use' ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {expandedFAQ === 'how-use' && (
+                  <div className="px-6 py-4 border-t border-gray-200">
+                    <p className="text-gray-600 leading-relaxed">
+                      Altcoin Sezonu sırasında altcoinlere yatırım yapmak daha karlı olabilir. Bitcoin Sezonu sırasında ise Bitcoin&apos;e odaklanmak mantıklı olabilir. 
+                      Ancak bu endeks sadece bir göstergedir ve yatırım tavsiyesi değildir.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <footer className="w-full bg-white border-t border-gray-200 py-8 mt-12">
-          <div className="w-full px-4">
-            <div className="flex items-center justify-center gap-4 mb-4">
-              <Image src={logoImage} alt="Dijital Marketim" width={120} height={40} />
+        <footer className="bg-white border-t border-gray-200 px-4 py-12">
+          <div className="w-full">
+            {/* Üst Kısım - Logo ve Açıklama */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
+              {/* Sol Taraf - Logo ve Açıklama */}
+              <div className="lg:col-span-2">
+                <div className="flex items-center gap-2 mb-4">
+                  <Image 
+                    src={logoImage}
+                    alt="Dijital Market Logo" 
+                    height={64}
+                    width={250}
+                    className="h-16 w-auto object-contain"
+                  />
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Dijital Marketim, kripto piyasasına dair temel bir analiz sağlar. Dijital Marketim; fiyatı, hacmi ve piyasa değerini takip etmenin yanı sıra topluluk büyümesini, açık kaynak kod geliştirmeyi, önemli olayları ve zincir üstü metrikleri takip eder.
+                </p>
+              </div>
+
+              {/* Sağ Taraf - Link Sütunları */}
+              <div className="lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-8">
+                {/* Kaynaklar */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-4">Kaynaklar</h3>
+                  <ul className="space-y-2">
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Kripto Haberleri</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Kripto Para Hazine Rezervleri</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Kripto Isı Haritası</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Kripto API&apos;si</a>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Destek */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-4">Destek</h3>
+                  <ul className="space-y-2">
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">İletişim Formu</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Reklam</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Şeker Ödülleri Listelemesi</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Yardım Merkezi</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Hata Ödülü</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">SSS</a>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Cripto Hakkında */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-4">Cripto Hakkında</h3>
+                  <ul className="space-y-2">
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Hakkımızda</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-green-600 hover:text-green-700 transition-colors font-semibold">Kariyer <span className="text-xs">(Bize Katılın)</span></a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Markalama Rehberi</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Metodoloji</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Feragatname</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Hizmet Koşulları</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Gizlilik Politikası</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Reklam Politikası</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Çerez Tercihleri</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Güven Merkezi</a>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Topluluk */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-4">Topluluk</h3>
+                  <ul className="space-y-2">
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">X/Twitter</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Telegram Sohbeti</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Telegram Haberleri</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Instagram</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Reddit</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Discord</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">Facebook</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">YouTube</a>
+                    </li>
+                    <li>
+                      <a href="#" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">TikTok</a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
             </div>
-            <div className="text-center text-gray-600 text-sm">
-              <p>Dijital Marketim, kripto piyasasına dair temel bir analiz sağlar.</p>
-              <p className="mt-2">
-                Dijital Marketim; fiyatı, hacmi ve piyasa değerini takip etmenin yanı sıra topluluk büyümesini, 
-                açık kaynak kod geliştirmeyi, önemli olayları ve zincir üstü metrikleri takip eder.
-              </p>
+
+            {/* Bülten Aboneliği */}
+            <div className="bg-gray-50 rounded-lg p-6 mb-8">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">
+                    Kripto paralar hakkında devamlı güncel bilgiye sahip olmak ister misiniz?
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Ücretsiz bültenimize abone olarak en son kripto para haberlerini, güncellemeleri ve raporları alın.
+                  </p>
+                </div>
+                <button className="bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-medium px-6 py-3 rounded-lg transition-colors whitespace-nowrap">
+                  Abone Ol
+                </button>
+              </div>
+            </div>
+
+            {/* Alt Kısım - Copyright ve App Store */}
+            <div className="border-t border-gray-200 pt-8">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+                <div className="text-sm text-gray-600">
+                  © 2025 Cripto. All Rights Reserved.
+                </div>
+              </div>
+
+              {/* Önemli Uyarı */}
+              <div className="mt-8 p-4 bg-gray-50 rounded-lg">
+                <h4 className="text-sm font-bold text-gray-900 mb-2">ÖNEMLİ UYARI</h4>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Bu web sitesinde, bağlantılı sitelerde, uygulamalarda, forumlarda, bloglarda, sosyal medya hesaplarında ve diğer platformlarda (birlikte &quot;Site&quot;) yer alan içerikler, yalnızca genel bilgilendirme amaçlıdır ve üçüncü taraflardan kaynaklanmaktadır. Bu içeriklerin doğruluğu, eksiksizliği, güncelliği veya güvenilirliği konusunda hiçbir garanti verilmemektedir. Herhangi bir yatırım kararı vermeden önce, kendi araştırmanızı yapmanız ve bağımsız profesyonel tavsiye almanız önerilir. Ticaret risklidir ve kayıplar meydana gelebilir. Bu sitede yer alan hiçbir içerik, teşvik, tavsiye veya teklif niteliği taşımamaktadır.
+                </p>
+              </div>
             </div>
           </div>
         </footer>

@@ -7,6 +7,7 @@ import CoinFilterBar, { NetworkFilter, SortFilter } from '../components/CoinFilt
 import Navbar from '../components/Navbar';
 import MarketStatsBar from '../components/MarketStatsBar';
 import SignupAlert from '../components/SignupAlert';
+import DijitalMarketAI from '../components/DijitalMarketAI';
 import logoImage from '../img/cripto_logo.png';
 
 // Bu bir placeholder/taslak tablodur. 
@@ -67,6 +68,9 @@ const HomePage: React.FC = () => {
     }
     return true;
   });
+  // AI Panel state'ini Navbar'dan almak için
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
 
   const handleDontShowAgain = () => {
     localStorage.setItem('dontShowSignupAlert', 'true');
@@ -446,12 +450,34 @@ const HomePage: React.FC = () => {
     return formatNumber(num);
   };
 
+  // AI Panel event listener
+  useEffect(() => {
+    const handleAIPanelOpen = (event: CustomEvent) => {
+      setShowAIPanel(event.detail.isOpen);
+      setSelectedQuestion(event.detail.question || null);
+    };
+
+    const handleAIPanelClose = () => {
+      setShowAIPanel(false);
+      setSelectedQuestion(null);
+    };
+
+    window.addEventListener('aiPanelOpen', handleAIPanelOpen as EventListener);
+    window.addEventListener('aiPanelClose', handleAIPanelClose as EventListener);
+
+    return () => {
+      window.removeEventListener('aiPanelOpen', handleAIPanelOpen as EventListener);
+      window.removeEventListener('aiPanelClose', handleAIPanelClose as EventListener);
+    };
+  }, []);
+
   // --- YÜKLEME VE HATA DURUMLARI ---
   if (loading) return <div className="text-center p-10 text-gray-700 bg-white">Yükleniyor...</div>;
   if (error) return <div className="text-center p-10 text-red-600 bg-white">Hata: {error}</div>;
   if (!coins.length) return <div className="text-center p-10 text-yellow-600 bg-white">Veri bulunamadı. Veritabanınızda coin verisi var mı?</div>;
 
   // --- TABLO GÖSTERİMİ (Tailwind CSS Kullanılarak) ---
+
   return (
     <div className="min-h-screen bg-white pb-14">
       <Head>
@@ -499,8 +525,11 @@ const HomePage: React.FC = () => {
         altcoinSeason={25}
       />
 
-      {/* Market Overview Section */}
-      <section id="coins" className="pb-12 bg-white">
+      {/* Main Content Wrapper - AI Panel ile yan yana */}
+      <div className={`flex transition-all duration-300`}>
+        <div className={`flex-1 min-w-0 transition-all duration-300`}>
+          {/* Market Overview Section */}
+          <section id="coins" className="pb-12 bg-white">
         {/* Coin Filter Bar */}
         <CoinFilterBar
           selectedNetwork={selectedNetwork}
@@ -1072,8 +1101,8 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Footer Section */}
-      <footer className="bg-white border-t border-gray-200 px-4 py-12">
+          {/* Footer Section */}
+          <footer className="bg-white border-t border-gray-200 px-4 py-12">
         <div className="w-full">
           {/* Üst Kısım - Logo ve Açıklama */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
@@ -1248,8 +1277,25 @@ const HomePage: React.FC = () => {
               </p>
             </div>
           </div>
+          </div>
+          </footer>
         </div>
-      </footer>
+
+        {/* AI Panel - Sağ tarafta */}
+        {showAIPanel && (
+          <div className="hidden lg:block">
+            <DijitalMarketAI
+              isOpen={showAIPanel}
+              onClose={() => {
+                setShowAIPanel(false);
+                setSelectedQuestion(null);
+                window.dispatchEvent(new CustomEvent('aiPanelClose'));
+              }}
+              question={selectedQuestion}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Market Stats Bar - Fixed at Bottom */}
       <MarketStatsBar marketStats={marketStats} />
