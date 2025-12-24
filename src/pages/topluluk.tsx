@@ -358,6 +358,9 @@ const ToplulukPage: React.FC = () => {
       if (response.ok && responseData) {
         console.log('Post başarıyla paylaşıldı:', responseData);
         
+        // Post paylaşıldı event'ini gönder (Navbar'daki blok güncellensin)
+        window.dispatchEvent(new CustomEvent('postCreated'));
+        
         // ÖNCE modal'ı kapat ve state'i temizle
         setIsPosting(false);
         setShowPostModal(false);

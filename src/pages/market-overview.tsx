@@ -154,10 +154,10 @@ const MarketOverview: React.FC = () => {
   // Market Cap Chart - Candlestick
   const marketCapChartWidth = 1200;
   const marketCapChartHeight = 500;
-  const paddingLeft = 70;
+  const paddingLeft = 90; // Increased for larger y-axis labels
   const paddingRight = 20;
   const paddingTop = 50;
-  const paddingBottom = 120; // Increased for x-axis labels
+  const paddingBottom = 150; // Increased for larger x-axis labels
   const plotWidth = marketCapChartWidth - paddingLeft - paddingRight;
   const plotHeight = marketCapChartHeight - paddingTop - paddingBottom;
   const volumeHeight = 80; // Volume chart height at bottom
@@ -179,10 +179,10 @@ const MarketOverview: React.FC = () => {
   // ETF Chart - Candlestick
   const etfChartWidth = 1200;
   const etfChartHeight = 500;
-  const etfPaddingLeft = 70;
+  const etfPaddingLeft = 90; // Increased for larger y-axis labels
   const etfPaddingRight = 20;
   const etfPaddingTop = 50;
-  const etfPaddingBottom = 120; // Increased for x-axis labels
+  const etfPaddingBottom = 150; // Increased for larger x-axis labels
   const etfPlotWidth = etfChartWidth - etfPaddingLeft - etfPaddingRight;
   const etfPlotHeight = etfChartHeight - etfPaddingTop - etfPaddingBottom;
   const etfVolumeHeight = 80;
@@ -597,38 +597,10 @@ const MarketOverview: React.FC = () => {
                           x={paddingLeft - 10}
                           y={y + 4}
                           textAnchor="end"
-                          className="text-xs fill-gray-600 font-medium"
+                          className="text-sm fill-gray-600 font-medium"
+                          style={{ fontSize: '14px' }}
                         >
                           {formatCurrency(value)}
-                        </text>
-                      </g>
-                    );
-                  })}
-                  
-                  {/* X-axis labels */}
-                  {history.marketCap.map((d, i) => {
-                    if (i % Math.ceil(history.marketCap.length / 6) !== 0 && i !== history.marketCap.length - 1) return null;
-                    const x = getMarketCapX(i);
-                    const date = new Date(d.date);
-                    const dateStr = `${date.getDate()} ${date.toLocaleDateString('tr-TR', { month: 'short' })}`;
-                    return (
-                      <g key={i}>
-                        <line
-                          x1={x}
-                          y1={paddingTop + plotHeight - volumeHeight}
-                          x2={x}
-                          y2={paddingTop + plotHeight - volumeHeight + 5}
-                          stroke="#9CA3AF"
-                          strokeWidth="1"
-                        />
-                        <text
-                          x={x}
-                          y={paddingTop + plotHeight - volumeHeight + 25}
-                          textAnchor="middle"
-                          className="text-xs fill-gray-600 font-medium"
-                          style={{ fontSize: '12px' }}
-                        >
-                          {dateStr}
                         </text>
                       </g>
                     );
@@ -708,6 +680,35 @@ const MarketOverview: React.FC = () => {
                     stroke="#E5E7EB"
                     strokeWidth="1"
                   />
+                  
+                  {/* X-axis labels - rendered after volume bars to ensure visibility */}
+                  {history.marketCap.map((d, i) => {
+                    if (i % Math.ceil(history.marketCap.length / 6) !== 0 && i !== history.marketCap.length - 1) return null;
+                    const x = getMarketCapX(i);
+                    const date = new Date(d.date);
+                    const dateStr = `${date.getDate()} ${date.toLocaleDateString('tr-TR', { month: 'short' })}`;
+                    return (
+                      <g key={i}>
+                        <line
+                          x1={x}
+                          y1={paddingTop + plotHeight}
+                          x2={x}
+                          y2={paddingTop + plotHeight + 5}
+                          stroke="#9CA3AF"
+                          strokeWidth="1"
+                        />
+                        <text
+                          x={x}
+                          y={paddingTop + plotHeight + 25}
+                          textAnchor="middle"
+                          className="text-sm fill-gray-600 font-medium"
+                          style={{ fontSize: '14px' }}
+                        >
+                          {dateStr}
+                        </text>
+                      </g>
+                    );
+                  })}
                 </svg>
                 
                 {/* Interactive Tooltip */}
@@ -841,7 +842,8 @@ const MarketOverview: React.FC = () => {
                               x={paddingLeft - 10}
                               y={y + 4}
                               textAnchor="end"
-                              className="text-xs fill-gray-600 font-medium"
+                              className="text-sm fill-gray-600 font-medium"
+                              style={{ fontSize: '14px' }}
                             >
                               {formatCurrency(value)}
                             </text>
@@ -849,33 +851,6 @@ const MarketOverview: React.FC = () => {
                         );
                       })}
                       
-                      {history.marketCap.map((d, i) => {
-                        if (i % Math.ceil(history.marketCap.length / 6) !== 0 && i !== history.marketCap.length - 1) return null;
-                        const x = getMarketCapX(i);
-                        const date = new Date(d.date);
-                        const dateStr = `${date.getDate()} ${date.toLocaleDateString('tr-TR', { month: 'short' })}`;
-                        return (
-                          <g key={i}>
-                            <line
-                              x1={x}
-                              y1={paddingTop + plotHeight - volumeHeight}
-                              x2={x}
-                              y2={paddingTop + plotHeight - volumeHeight + 5}
-                              stroke="#9CA3AF"
-                              strokeWidth="1"
-                            />
-                            <text
-                              x={x}
-                              y={paddingTop + plotHeight - volumeHeight + 25}
-                              textAnchor="middle"
-                              className="text-xs fill-gray-600 font-medium"
-                              style={{ fontSize: '12px' }}
-                            >
-                              {dateStr}
-                            </text>
-                          </g>
-                        );
-                      })}
                       
                       <path
                         d={`M ${paddingLeft} ${paddingTop + plotHeight - volumeHeight} ${history.marketCap.map((d, i) => {
@@ -946,6 +921,35 @@ const MarketOverview: React.FC = () => {
                         stroke="#E5E7EB"
                         strokeWidth="1"
                       />
+                      
+                      {/* X-axis labels - rendered after volume bars to ensure visibility */}
+                      {history.marketCap.map((d, i) => {
+                        if (i % Math.ceil(history.marketCap.length / 6) !== 0 && i !== history.marketCap.length - 1) return null;
+                        const x = getMarketCapX(i);
+                        const date = new Date(d.date);
+                        const dateStr = `${date.getDate()} ${date.toLocaleDateString('tr-TR', { month: 'short' })}`;
+                        return (
+                          <g key={i}>
+                            <line
+                              x1={x}
+                              y1={paddingTop + plotHeight}
+                              x2={x}
+                              y2={paddingTop + plotHeight + 5}
+                              stroke="#9CA3AF"
+                              strokeWidth="1"
+                            />
+                            <text
+                              x={x}
+                              y={paddingTop + plotHeight + 25}
+                              textAnchor="middle"
+                              className="text-sm fill-gray-600 font-medium"
+                              style={{ fontSize: '14px' }}
+                            >
+                              {dateStr}
+                            </text>
+                          </g>
+                        );
+                      })}
                     </svg>
                     
                     {tooltipData && (
@@ -1047,7 +1051,8 @@ const MarketOverview: React.FC = () => {
                           x={etfPaddingLeft - 10}
                           y={y + 4}
                           textAnchor="end"
-                          className="text-xs fill-gray-600 font-medium"
+                          className="text-sm fill-gray-600 font-medium"
+                          style={{ fontSize: '14px' }}
                         >
                           {formatCurrency(value)}
                         </text>
@@ -1066,34 +1071,6 @@ const MarketOverview: React.FC = () => {
                     strokeDasharray="4 4"
                   />
                   
-                  {/* X-axis labels */}
-                  {etfCandles.map((d, i) => {
-                    if (i % Math.ceil(etfCandles.length / 6) !== 0 && i !== etfCandles.length - 1) return null;
-                    const x = getEtfX(i);
-                    const date = new Date(d.date);
-                    const dateStr = `${date.getDate()} ${date.toLocaleDateString('tr-TR', { month: 'short' })}`;
-                    return (
-                      <g key={i}>
-                        <line
-                          x1={x}
-                          y1={etfPaddingTop + etfPlotHeight - etfVolumeHeight}
-                          x2={x}
-                          y2={etfPaddingTop + etfPlotHeight - etfVolumeHeight + 5}
-                          stroke="#9CA3AF"
-                          strokeWidth="1"
-                        />
-                        <text
-                          x={x}
-                          y={etfPaddingTop + etfPlotHeight - etfVolumeHeight + 25}
-                          textAnchor="middle"
-                          className="text-xs fill-gray-600 font-medium"
-                          style={{ fontSize: '12px' }}
-                        >
-                          {dateStr}
-                        </text>
-                      </g>
-                    );
-                  })}
                   
                   {/* Moving Averages */}
                   {etfMA20.map((ma, i) => {
@@ -1200,6 +1177,35 @@ const MarketOverview: React.FC = () => {
                     stroke="#E5E7EB"
                     strokeWidth="1"
                   />
+                  
+                  {/* X-axis labels - rendered after volume bars to ensure visibility */}
+                  {etfCandles.map((d, i) => {
+                    if (i % Math.ceil(etfCandles.length / 6) !== 0 && i !== etfCandles.length - 1) return null;
+                    const x = getEtfX(i);
+                    const date = new Date(d.date);
+                    const dateStr = `${date.getDate()} ${date.toLocaleDateString('tr-TR', { month: 'short' })}`;
+                    return (
+                      <g key={i}>
+                        <line
+                          x1={x}
+                          y1={etfPaddingTop + etfPlotHeight}
+                          x2={x}
+                          y2={etfPaddingTop + etfPlotHeight + 5}
+                          stroke="#9CA3AF"
+                          strokeWidth="1"
+                        />
+                        <text
+                          x={x}
+                          y={etfPaddingTop + etfPlotHeight + 25}
+                          textAnchor="middle"
+                          className="text-sm fill-gray-600 font-medium"
+                          style={{ fontSize: '14px' }}
+                        >
+                          {dateStr}
+                        </text>
+                      </g>
+                    );
+                  })}
                 </svg>
                 
                 {/* Fullscreen button */}
@@ -1309,7 +1315,8 @@ const MarketOverview: React.FC = () => {
                               x={etfPaddingLeft - 10}
                               y={y + 4}
                               textAnchor="end"
-                              className="text-xs fill-gray-600 font-medium"
+                              className="text-sm fill-gray-600 font-medium"
+                              style={{ fontSize: '14px' }}
                             >
                               {formatCurrency(value)}
                             </text>
@@ -1327,33 +1334,6 @@ const MarketOverview: React.FC = () => {
                         strokeDasharray="4 4"
                       />
                       
-                      {etfCandles.map((d, i) => {
-                        if (i % Math.ceil(etfCandles.length / 6) !== 0 && i !== etfCandles.length - 1) return null;
-                        const x = getEtfX(i);
-                        const date = new Date(d.date);
-                        const dateStr = `${date.getDate()} ${date.toLocaleDateString('tr-TR', { month: 'short' })}`;
-                        return (
-                          <g key={i}>
-                            <line
-                              x1={x}
-                              y1={etfPaddingTop + etfPlotHeight - etfVolumeHeight}
-                              x2={x}
-                              y2={etfPaddingTop + etfPlotHeight - etfVolumeHeight + 5}
-                              stroke="#9CA3AF"
-                              strokeWidth="1"
-                            />
-                            <text
-                              x={x}
-                              y={etfPaddingTop + etfPlotHeight - etfVolumeHeight + 25}
-                              textAnchor="middle"
-                              className="text-xs fill-gray-600 font-medium"
-                              style={{ fontSize: '12px' }}
-                            >
-                              {dateStr}
-                            </text>
-                          </g>
-                        );
-                      })}
                       
                       {etfMA20.map((ma, i) => {
                         if (ma === null || i === 0) return null;
@@ -1454,6 +1434,35 @@ const MarketOverview: React.FC = () => {
                         stroke="#E5E7EB"
                         strokeWidth="1"
                       />
+                      
+                      {/* X-axis labels - rendered after volume bars to ensure visibility */}
+                      {etfCandles.map((d, i) => {
+                        if (i % Math.ceil(etfCandles.length / 6) !== 0 && i !== etfCandles.length - 1) return null;
+                        const x = getEtfX(i);
+                        const date = new Date(d.date);
+                        const dateStr = `${date.getDate()} ${date.toLocaleDateString('tr-TR', { month: 'short' })}`;
+                        return (
+                          <g key={i}>
+                            <line
+                              x1={x}
+                              y1={etfPaddingTop + etfPlotHeight}
+                              x2={x}
+                              y2={etfPaddingTop + etfPlotHeight + 5}
+                              stroke="#9CA3AF"
+                              strokeWidth="1"
+                            />
+                            <text
+                              x={x}
+                              y={etfPaddingTop + etfPlotHeight + 25}
+                              textAnchor="middle"
+                              className="text-sm fill-gray-600 font-medium"
+                              style={{ fontSize: '14px' }}
+                            >
+                              {dateStr}
+                            </text>
+                          </g>
+                        );
+                      })}
                       
                       {etfTooltipData && (
                         <g>

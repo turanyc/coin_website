@@ -52,6 +52,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
   const [isMounted, setIsMounted] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
+  const [latestPost, setLatestPost] = useState<{ content_text: string; created_at: string; user_name: string; profile_picture_url?: string; image_url?: string } | null>(null);
   const { language, setLanguage, t } = useLanguage();
   const router = useRouter();
 
@@ -188,6 +189,45 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
       router.events.off('routeChangeComplete', handleRoute);
     };
   }, [router]);
+
+  // En son topluluk postunu çek
+  useEffect(() => {
+    const fetchLatestPost = async () => {
+      try {
+        const response = await fetch('/api/community/posts');
+        const data = await response.json();
+        if (data.posts && data.posts.length > 0) {
+          const latest = data.posts[0]; // En yeni post
+          setLatestPost({
+            content_text: latest.content_text,
+            created_at: latest.created_at,
+            user_name: latest.user_name,
+            profile_picture_url: latest.profile_picture_url,
+            image_url: latest.image_url,
+          });
+        }
+      } catch (error) {
+        console.error('Latest post fetch error:', error);
+      }
+    };
+
+    fetchLatestPost();
+    
+    // Post paylaşıldığında güncellemek için event listener
+    const handlePostCreated = () => {
+      fetchLatestPost();
+    };
+
+    window.addEventListener('postCreated', handlePostCreated);
+    
+    // Her 30 saniyede bir güncelle
+    const interval = setInterval(fetchLatestPost, 30000);
+
+    return () => {
+      window.removeEventListener('postCreated', handlePostCreated);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Dil dropdown dışına tıklanınca kapat
   useEffect(() => {
@@ -1099,10 +1139,10 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
       {/* Crypto Market Overview */}
       <div className="bg-white border-b border-gray-200 py-6">
         <div className="w-full px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-stretch">
             {/* Market Cap Card */}
             <Link href="/market-overview">
-              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
+              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer flex flex-col h-full">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-gray-700">Piyasa Değeri</span>
@@ -1135,7 +1175,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
 
             {/* CMC20 Card */}
             <Link href="/cmc20">
-              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
+              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer flex flex-col h-full">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-gray-700">Dijital Market 20</span>
@@ -1166,7 +1206,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
 
             {/* Fear & Greed Card */}
             <Link href="/fear-greed">
-              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
+              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer flex flex-col h-full">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-gray-700">Korku ve Açgözlülük</span>
@@ -1207,7 +1247,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
 
             {/* Altcoin Season Card */}
             <Link href="/altcoin-season">
-              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
+              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer flex flex-col h-full">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-gray-700">Altcoin Sezonu</span>
@@ -1238,7 +1278,7 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
 
             {/* Average Crypto RSI Card */}
             <Link href="/rsi">
-              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
+              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer flex flex-col h-full">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-gray-700">Ortalama Kripto RSI</span>
@@ -1267,20 +1307,72 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
               </div>
             </Link>
 
-            {/* News Card */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 bg-gray-300 rounded-full"></div>
-                <span className="text-sm font-semibold text-gray-700">Coinpaper.com</span>
-                <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                <span className="text-xs text-gray-500">3 saat</span>
+            {/* News Card - Topluluk Postları */}
+            <Link href="/topluluk">
+              <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer flex flex-col h-full">
+                <div className="flex items-center gap-2 mb-2">
+                  {latestPost?.profile_picture_url ? (
+                    <Image
+                      src={latestPost.profile_picture_url}
+                      alt={latestPost.user_name}
+                      width={24}
+                      height={24}
+                      className="rounded-full"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs text-gray-600 font-medium">
+                        {latestPost?.user_name?.charAt(0).toUpperCase() || 'T'}
+                      </span>
+                    </div>
+                  )}
+                  <span className="text-sm font-semibold text-gray-700 truncate">
+                    {latestPost?.user_name || 'Topluluk'}
+                  </span>
+                  <svg className="w-4 h-4 text-blue-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-xs text-gray-500 flex-shrink-0">
+                    {latestPost?.created_at ? (() => {
+                      const date = new Date(latestPost.created_at);
+                      const now = new Date();
+                      const diffMs = now.getTime() - date.getTime();
+                      const diffMins = Math.floor(diffMs / 60000);
+                      const diffHours = Math.floor(diffMs / 3600000);
+                      const diffDays = Math.floor(diffMs / 86400000);
+                      
+                      if (diffMins < 1) return 'Şimdi';
+                      if (diffMins < 60) return `${diffMins} dk`;
+                      if (diffHours < 24) return `${diffHours} sa`;
+                      if (diffDays < 7) return `${diffDays} g`;
+                      return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+                    })() : 'Yükleniyor...'}
+                  </span>
+                </div>
+                {latestPost?.image_url ? (
+                  <div className="mb-2 rounded-lg overflow-hidden h-16 w-full">
+                    <Image
+                      src={latestPost.image_url}
+                      alt="Post image"
+                      width={200}
+                      height={64}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : null}
+                <div className="text-sm text-gray-700 line-clamp-2 flex-1">
+                  {latestPost ? (
+                    <>
+                      <span className="text-yellow-500">❤️</span> YENİ: {latestPost.content_text.length > (latestPost.image_url ? 60 : 100)
+                        ? latestPost.content_text.substring(0, latestPost.image_url ? 60 : 100) + '...' 
+                        : latestPost.content_text}
+                    </>
+                  ) : (
+                    <span className="text-gray-400">Yükleniyor...</span>
+                  )}
+                </div>
               </div>
-              <div className="text-sm text-gray-700 line-clamp-2">
-                <span className="text-yellow-500">❤️</span> YENİ: #Visa, CEMEA bölgesinde #stablecoin ödeme hizmetlerini genişletmek için Aquanow ile ortaklık kurdu, veren ve alan kuruluşların...
-              </div>
-            </div>
+            </Link>
           </div>
         </div>
       </div>
