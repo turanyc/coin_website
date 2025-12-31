@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -49,6 +49,7 @@ const HomePage: React.FC = () => {
   const [displayedCoins, setDisplayedCoins] = useState(30);
   const [currentPage, setCurrentPage] = useState(1);
   const tableRef = React.useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(true);
   const [fearGreedIndex, setFearGreedIndex] = useState(50);
   const [averageRSI, setAverageRSI] = useState(47.48);
   const [fearGreedClassification, setFearGreedClassification] = useState('Neutral');
@@ -88,7 +89,9 @@ const HomePage: React.FC = () => {
   });
 
   // CoinGecko Global API'den veri çekme fonksiyonu
-  const fetchGlobalStats = async () => {
+  const fetchGlobalStats = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    
     try {
       // Timeout için AbortController kullan (browser uyumluluğu için)
       const controller = new AbortController();
@@ -100,6 +103,8 @@ const HomePage: React.FC = () => {
 
       clearTimeout(timeoutId);
 
+      if (!isMountedRef.current) return;
+
       if (!response.ok) {
         console.warn(`Global API yanıt hatası: ${response.status}`);
         // Hata durumunda mevcut verileri koru
@@ -108,6 +113,8 @@ const HomePage: React.FC = () => {
 
       const data = await response.json();
 
+      if (!isMountedRef.current) return;
+
       if (data.error) {
         console.warn('Global API hatası:', data.error, data.details || '');
         // Hata durumunda mevcut verileri koru, sıfırlama
@@ -115,17 +122,21 @@ const HomePage: React.FC = () => {
       }
 
       // Verileri güncelle
-      setMarketStats({
-        totalCoins: data.totalCoins || 0,
-        totalExchanges: data.totalExchanges || 0,
-        marketCap: data.marketCap || 0,
-        marketCapChange24h: data.marketCapChange24h || 0,
-        volume24h: data.volume24h || 0,
-        btcDominance: data.btcDominance || 0,
-        ethDominance: data.ethDominance || 0,
-        gasPrice: 0.518, // Gas fiyatı için ayrı API gerekebilir
-      });
+      if (isMountedRef.current) {
+        setMarketStats({
+          totalCoins: data.totalCoins || 0,
+          totalExchanges: data.totalExchanges || 0,
+          marketCap: data.marketCap || 0,
+          marketCapChange24h: data.marketCapChange24h || 0,
+          volume24h: data.volume24h || 0,
+          btcDominance: data.btcDominance || 0,
+          ethDominance: data.ethDominance || 0,
+          gasPrice: 0.518, // Gas fiyatı için ayrı API gerekebilir
+        });
+      }
     } catch (error) {
+      if (!isMountedRef.current) return;
+      
       // AbortError (timeout) veya network hatası
       if (error instanceof Error && error.name === 'AbortError') {
         console.warn('Global API timeout - veri çekme çok uzun sürdü');
@@ -134,61 +145,181 @@ const HomePage: React.FC = () => {
       }
       // Hata durumunda mevcut verileri koru, sessizce devam et
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // setMarketStats is stable and doesn't need to be in deps
 
   // Kendi API'mizden veri çekme fonksiyonu
-  const fetchCoins = async () => {
-    setLoading(true);
-    setError(null);
+  const fetchCoins = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    
     try {
+      if (isMountedRef.current) {
+        setLoading(true);
+        setError(null);
+      }
+      
       // Oluşturduğunuz /api/coins rotasını çağırıyoruz
-      const response = await fetch('/api/coins');
+      let response: Response;
+      try {
+        response = await fetch('/api/coins');
+      } catch (fetchError) {
+        console.error('Fetch error:', fetchError);
+        if (isMountedRef.current) {
+          setError('API\'ye bağlanılamadı.');
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (!isMountedRef.current) return;
 
       if (!response.ok) {
         throw new Error(`API hatası: ${response.status}`);
       }
 
-      const data = await response.json();
+      let data: any;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('JSON parse error:', jsonError);
+        if (isMountedRef.current) {
+          setError('API yanıtı işlenemedi.');
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (!isMountedRef.current) return;
 
       if (data.error) {
-        setError(data.error);
-        setCoins([]);
-      } else {
-        // Duplicate'leri filtrele - hem ID hem symbol bazlı kontrol
-        // Önce ID bazlı unique yap, sonra symbol bazlı unique yap
-        const coinMapById = new Map<string, Coin>();
+        if (isMountedRef.current) {
+          setError(data.error);
+          setCoins([]);
+          setLoading(false);
+        }
+        return;
+      }
 
-        // İlk adım: ID bazlı duplicate'leri filtrele
-        (data || []).forEach((coin: Coin) => {
-          const normalizedId = coin.id.toLowerCase().trim();
-          const existing = coinMapById.get(normalizedId);
-          if (!existing || (coin.market_cap > existing.market_cap)) {
-            coinMapById.set(normalizedId, coin);
+      // Duplicate'leri filtrele - hem ID hem symbol bazlı kontrol
+      // Önce ID bazlı unique yap, sonra symbol bazlı unique yap
+      if (!Array.isArray(data)) {
+        console.warn('API\'den array dışında veri geldi:', typeof data);
+        if (isMountedRef.current) {
+          setCoins([]);
+        }
+        return;
+      }
+
+      const coinMapById = new Map<string, Coin>();
+
+      // İlk adım: ID bazlı duplicate'leri filtrele
+      try {
+        data.forEach((coin: any) => {
+          try {
+            if (!coin || typeof coin !== 'object' || !coin.id || typeof coin.id !== 'string') {
+              return;
+            }
+            
+            const normalizedId = coin.id.toLowerCase().trim();
+            if (!normalizedId) return;
+            
+            const marketCap = typeof coin.market_cap === 'number' ? coin.market_cap : 
+                             typeof coin.market_cap === 'string' ? parseFloat(coin.market_cap) || 0 : 0;
+            
+            const existing = coinMapById.get(normalizedId);
+            const existingMarketCap = existing && typeof existing.market_cap === 'number' ? existing.market_cap :
+                                      existing && typeof existing.market_cap === 'string' ? parseFloat(existing.market_cap) || 0 : 0;
+            
+            if (!existing || marketCap > existingMarketCap) {
+              coinMapById.set(normalizedId, {
+                ...coin,
+                market_cap: marketCap,
+              } as Coin);
+            }
+          } catch (coinError) {
+            console.warn('Coin işlenirken hata:', coin, coinError);
           }
         });
+      } catch (forEachError) {
+        console.error('Data forEach hatası:', forEachError);
+        if (isMountedRef.current) {
+          setError('Veri işlenirken hata oluştu.');
+          setLoading(false);
+        }
+        return;
+      }
 
-        // İkinci adım: Symbol bazlı duplicate'leri filtrele (BTC, ETH gibi)
-        const coinMapBySymbol = new Map<string, Coin>();
+      // İkinci adım: Symbol bazlı duplicate'leri filtrele (BTC, ETH gibi)
+      const coinMapBySymbol = new Map<string, Coin>();
+      try {
         Array.from(coinMapById.values()).forEach((coin) => {
-          const normalizedSymbol = coin.symbol.toLowerCase().trim();
-          const existing = coinMapBySymbol.get(normalizedSymbol);
-          if (!existing || (coin.market_cap > existing.market_cap)) {
-            coinMapBySymbol.set(normalizedSymbol, coin);
+          try {
+            if (!coin || !coin.symbol || typeof coin.symbol !== 'string') return;
+            
+            const normalizedSymbol = coin.symbol.toLowerCase().trim();
+            if (!normalizedSymbol) return;
+            
+            const marketCap = typeof coin.market_cap === 'number' ? coin.market_cap : 
+                             typeof coin.market_cap === 'string' ? parseFloat(coin.market_cap) || 0 : 0;
+            
+            const existing = coinMapBySymbol.get(normalizedSymbol);
+            const existingMarketCap = existing && typeof existing.market_cap === 'number' ? existing.market_cap :
+                                      existing && typeof existing.market_cap === 'string' ? parseFloat(existing.market_cap) || 0 : 0;
+            
+            if (!existing || marketCap > existingMarketCap) {
+              coinMapBySymbol.set(normalizedSymbol, {
+                ...coin,
+                market_cap: marketCap,
+              } as Coin);
+            }
+          } catch (coinError) {
+            console.warn('Symbol filtreleme hatası:', coin, coinError);
           }
         });
 
         // Map'ten array'e çevir ve market_cap'e göre sırala
-        const uniqueCoins = Array.from(coinMapBySymbol.values()).sort((a, b) => b.market_cap - a.market_cap);
+        const uniqueCoins = Array.from(coinMapBySymbol.values())
+          .map(coin => {
+            try {
+              return {
+                ...coin,
+                market_cap: typeof coin.market_cap === 'number' ? coin.market_cap : 
+                           typeof coin.market_cap === 'string' ? parseFloat(coin.market_cap) || 0 : 0,
+              };
+            } catch (mapError) {
+              console.warn('Coin map hatası:', coin, mapError);
+              return { ...coin, market_cap: 0 };
+            }
+          })
+          .sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0));
+        
+        if (isMountedRef.current) {
+          setCoins(uniqueCoins);
+        }
+      } catch (symbolError) {
+        console.error('Symbol filtreleme genel hatası:', symbolError);
+        if (isMountedRef.current) {
+          setError('Veri işlenirken hata oluştu.');
+          setLoading(false);
+        }
+        return;
+      }
+      
+      if (isMountedRef.current) {
         setCoins(uniqueCoins);
       }
     } catch (error) {
+      if (!isMountedRef.current) return;
       console.error("Frontend veri çekme hatası:", error);
       setError('Veri yüklenirken bir hata oluştu.');
       setCoins([]);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // State setters (setLoading, setError, setCoins) are stable and don't need to be in deps
 
   // Fear & Greed Index güncelleme - CNN/Alternative.me API'den
   useEffect(() => {
@@ -239,33 +370,55 @@ const HomePage: React.FC = () => {
   }, [portfolio]);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    
     // İlk yüklemede hem coin'leri hem global stats'ı çek
-    fetchGlobalStats();
-    fetchCoins();
+    const initialLoad = async () => {
+      if (!isMountedRef.current) return;
+      await Promise.all([
+        fetchGlobalStats().catch(err => console.error('Global stats error:', err)),
+        fetchCoins().catch(err => console.error('Fetch coins error:', err))
+      ]);
+    };
+    
+    initialLoad();
 
     // Global stats'ı her 60 saniyede bir güncelle
-    const globalIntervalId = setInterval(fetchGlobalStats, 60000);
+    const globalIntervalId = setInterval(() => {
+      if (isMountedRef.current) {
+        fetchGlobalStats().catch(err => console.error('Global stats error:', err));
+      }
+    }, 60000);
 
     // Tabloyu her 30 saniyede bir güncelleyelim (Kullanıcıya canlı hissi vermek için)
-    const coinsIntervalId = setInterval(fetchCoins, 30000);
+    const coinsIntervalId = setInterval(() => {
+      if (isMountedRef.current) {
+        fetchCoins().catch(err => console.error('Fetch coins error:', err));
+      }
+    }, 30000);
 
     // 5 saniye sonra signup alert'i göster (eğer kullanıcı "bir daha gösterme" demediyse)
     let signupTimer: NodeJS.Timeout | null = null;
-    const dontShowAgain = localStorage.getItem('dontShowSignupAlert');
-    if (dontShowAgain !== 'true') {
-      signupTimer = setTimeout(() => {
-        setShowSignupAlert(true);
-      }, 5000);
+    if (typeof window !== 'undefined') {
+      const dontShowAgain = localStorage.getItem('dontShowSignupAlert');
+      if (dontShowAgain !== 'true') {
+        signupTimer = setTimeout(() => {
+          if (isMountedRef.current) {
+            setShowSignupAlert(true);
+          }
+        }, 5000);
+      }
     }
 
     return () => {
+      isMountedRef.current = false;
       clearInterval(globalIntervalId);
       clearInterval(coinsIntervalId);
       if (signupTimer) {
         clearTimeout(signupTimer);
       }
     };
-  }, []);
+  }, [fetchGlobalStats, fetchCoins]);
 
   // Sayfa değiştiğinde scroll to top (sadece currentPage değiştiğinde, displayedCoins değiştiğinde değil)
   useEffect(() => {

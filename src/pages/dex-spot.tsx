@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -29,15 +29,7 @@ const DexSpotPage: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState<'spot' | 'futures' | 'new-listings' | 'zones'>('spot');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
-  useEffect(() => {
-    fetchCoins();
-    const interval = setInterval(() => {
-      fetchCoins();
-    }, 60000); // Her 1 dakikada bir güncelle
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchCoins = async () => {
+  const fetchCoins = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(
@@ -50,7 +42,15 @@ const DexSpotPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchCoins();
+    const interval = setInterval(() => {
+      fetchCoins();
+    }, 60000); // Her 1 dakikada bir güncelle
+    return () => clearInterval(interval);
+  }, [fetchCoins]);
 
   const formatCurrency = (value: number | null): string => {
     if (value === null || value === undefined || isNaN(value)) {
