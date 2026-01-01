@@ -10,9 +10,6 @@ import SignupAlert from '../components/SignupAlert';
 import DijitalMarketAI from '../components/DijitalMarketAI';
 import logoImage from '../img/cripto_logo.png';
 
-// Bu bir placeholder/taslak tablodur. 
-// components/CryptoTable.tsx dosyasını oluşturarak bu içeriği oraya taşıyabilirsiniz.
-
 interface Coin {
   id: string;
   name: string;
@@ -165,7 +162,8 @@ const HomePage: React.FC = () => {
       } catch (fetchError) {
         console.error('Fetch error:', fetchError);
         if (isMountedRef.current) {
-          setError('API\'ye bağlanılamadı.');
+          const errorMsg = fetchError instanceof Error ? fetchError.message : 'Network hatası';
+          setError(`API'ye bağlanılamadı: ${errorMsg}`);
           setLoading(false);
         }
         return;
@@ -174,7 +172,25 @@ const HomePage: React.FC = () => {
       if (!isMountedRef.current) return;
 
       if (!response.ok) {
-        throw new Error(`API hatası: ${response.status}`);
+        let errorText = '';
+        try {
+          const errorData = await response.json();
+          errorText = errorData.error || errorData.details || '';
+        } catch {
+          errorText = response.statusText;
+        }
+        const errorMessage = errorText 
+          ? `API hatası (${response.status}): ${errorText}`
+          : `API hatası: ${response.status} ${response.statusText}`;
+        
+        console.error('API response error:', response.status, errorMessage);
+        
+        if (isMountedRef.current) {
+          setError(errorMessage);
+          setCoins([]);
+          setLoading(false);
+        }
+        return;
       }
 
       let data: any;
@@ -183,7 +199,7 @@ const HomePage: React.FC = () => {
       } catch (jsonError) {
         console.error('JSON parse error:', jsonError);
         if (isMountedRef.current) {
-          setError('API yanıtı işlenemedi.');
+          setError('API yanıtı işlenemedi. Lütfen sayfayı yenileyin.');
           setLoading(false);
         }
         return;
@@ -192,8 +208,12 @@ const HomePage: React.FC = () => {
       if (!isMountedRef.current) return;
 
       if (data.error) {
+        console.error('API returned error:', data.error, data.details);
         if (isMountedRef.current) {
-          setError(data.error);
+          const errorMsg = data.details 
+            ? `${data.error}: ${data.details}`
+            : data.error;
+          setError(errorMsg);
           setCoins([]);
           setLoading(false);
         }
@@ -251,6 +271,8 @@ const HomePage: React.FC = () => {
 
       // İkinci adım: Symbol bazlı duplicate'leri filtrele (BTC, ETH gibi)
       const coinMapBySymbol = new Map<string, Coin>();
+      let uniqueCoins: Coin[] = [];
+      
       try {
         Array.from(coinMapById.values()).forEach((coin) => {
           try {
@@ -278,7 +300,7 @@ const HomePage: React.FC = () => {
         });
 
         // Map'ten array'e çevir ve market_cap'e göre sırala
-        const uniqueCoins = Array.from(coinMapBySymbol.values())
+        uniqueCoins = Array.from(coinMapBySymbol.values())
           .map(coin => {
             try {
               return {
@@ -293,9 +315,6 @@ const HomePage: React.FC = () => {
           })
           .sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0));
         
-        if (isMountedRef.current) {
-          setCoins(uniqueCoins);
-        }
       } catch (symbolError) {
         console.error('Symbol filtreleme genel hatası:', symbolError);
         if (isMountedRef.current) {
@@ -305,14 +324,30 @@ const HomePage: React.FC = () => {
         return;
       }
       
-      if (isMountedRef.current) {
+      // State güncellemesini tek bir yerde yap
+      if (isMountedRef.current && uniqueCoins.length > 0) {
         setCoins(uniqueCoins);
+      } else if (isMountedRef.current) {
+        setCoins([]);
       }
     } catch (error) {
       if (!isMountedRef.current) return;
       console.error("Frontend veri çekme hatası:", error);
-      setError('Veri yüklenirken bir hata oluştu.');
-      setCoins([]);
+      
+      let errorMessage = 'Veri yüklenirken bir hata oluştu.';
+      if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+      }
+      
+      if (isMountedRef.current) {
+        setError(errorMessage);
+        setCoins([]);
+      }
     } finally {
       if (isMountedRef.current) {
         setLoading(false);
@@ -375,13 +410,29 @@ const HomePage: React.FC = () => {
     // İlk yüklemede hem coin'leri hem global stats'ı çek
     const initialLoad = async () => {
       if (!isMountedRef.current) return;
-      await Promise.all([
-        fetchGlobalStats().catch(err => console.error('Global stats error:', err)),
-        fetchCoins().catch(err => console.error('Fetch coins error:', err))
-      ]);
+      
+      try {
+        // Paralel olarak her iki fonksiyonu da çağır, ama her birini ayrı ayrı yakala
+        const promises = [
+          fetchGlobalStats().catch(err => {
+            console.error('Global stats error:', err);
+            return null;
+          }),
+          fetchCoins().catch(err => {
+            console.error('Fetch coins error:', err);
+            return null;
+          })
+        ];
+        
+        await Promise.allSettled(promises);
+      } catch (error) {
+        console.error('Initial load error:', error);
+      }
     };
     
-    initialLoad();
+    initialLoad().catch(err => {
+      console.error('Initial load promise error:', err);
+    });
 
     // Global stats'ı her 60 saniyede bir güncelle
     const globalIntervalId = setInterval(() => {

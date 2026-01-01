@@ -1082,62 +1082,9 @@ const Navbar: React.FC<NavbarProps> = ({ marketStats, fearGreedIndex = 50, fearG
         ></div>
       )}
 
-      {/* Tab Menu - Navbar Altında - Sadece Ana Sayfada */}
+      {/* Crypto Market Overview - Sadece Ana Sayfada */}
       {router.pathname === '/' && (
       <>
-      <div className="bg-white border-b border-gray-200">
-        <div className="w-full px-4">
-          <div className="flex items-center gap-6 overflow-x-auto scrollbar-hide">
-            <button className="px-4 py-3 text-gray-900 font-medium text-2xl whitespace-nowrap border-b-2 border-blue-600 relative">
-              En İyiler
-            </button>
-            <button className="px-4 py-3 text-gray-600 hover:text-gray-900 font-medium text-2xl whitespace-nowrap transition-colors">
-              Trend
-            </button>
-            <button className="px-4 py-3 text-gray-600 hover:text-gray-900 font-medium text-2xl whitespace-nowrap transition-colors">
-              En Çok Ziyaret Edilenler
-            </button>
-            <button className="px-4 py-3 text-gray-600 hover:text-gray-900 font-medium text-2xl whitespace-nowrap transition-colors">
-              Yeni
-            </button>
-            <button className="px-4 py-3 text-gray-600 hover:text-gray-900 font-medium text-2xl whitespace-nowrap transition-colors">
-              Kazananlar
-            </button>
-            <button className="px-4 py-3 text-gray-600 hover:text-gray-900 font-medium text-2xl whitespace-nowrap transition-colors">
-              Gerçek Dünya Varlıkları
-            </button>
-            <div className="relative">
-              <button 
-                onClick={() => setOpenDropdown(openDropdown === 'more-tabs' ? null : 'more-tabs')}
-                className="px-4 py-3 text-gray-600 hover:text-gray-900 font-medium text-2xl whitespace-nowrap transition-colors flex items-center gap-1"
-              >
-                Daha Fazla
-                <svg className={`w-4 h-4 transition-transform ${openDropdown === 'more-tabs' ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {openDropdown === 'more-tabs' && (
-                <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl py-2 z-50 min-w-[200px]" onClick={(e) => e.stopPropagation()}>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors" onClick={() => setOpenDropdown(null)}>
-                    Kaybedenler
-                  </a>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors" onClick={() => setOpenDropdown(null)}>
-                    Son 24 Saat
-                  </a>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors" onClick={() => setOpenDropdown(null)}>
-                    Son 7 Gün
-                  </a>
-                  <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-colors" onClick={() => setOpenDropdown(null)}>
-                    Son 30 Gün
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Crypto Market Overview */}
       <div className="bg-white border-b border-gray-200 py-6">
         <div className="w-full px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-stretch">
