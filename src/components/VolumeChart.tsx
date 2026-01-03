@@ -264,10 +264,10 @@ export function VolumeChart({ data = defaultChartData }: VolumeChartProps) {
 
   return (
     <Card className="pt-0 bg-white border-gray-200">
-      <CardHeader className="flex items-center gap-2 space-y-0 border-b border-gray-200 py-5 sm:flex-row">
+      <CardHeader className="flex items-center gap-2 space-y-0 border-b border-gray-200 py-3 sm:flex-row">
         <div className="grid flex-1 gap-1">
-          <CardTitle className="text-gray-900">Kripto Piyasası</CardTitle>
-          <CardDescription className="text-gray-600">
+          <CardTitle className="text-sm text-gray-900">Kripto Piyasası</CardTitle>
+          <CardDescription className="text-xs text-gray-600">
             {getDescription()}
           </CardDescription>
         </div>
@@ -291,10 +291,10 @@ export function VolumeChart({ data = defaultChartData }: VolumeChartProps) {
           </SelectContent>
         </Select>
       </CardHeader>
-      <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+      <CardContent className="px-2 pt-3 sm:px-4 sm:pt-4">
         <ChartContainer
           config={chartConfig}
-          className="aspect-auto h-[250px] w-full"
+          className="aspect-auto h-[180px] w-full"
         >
           <AreaChart data={filteredData}>
             <defs>

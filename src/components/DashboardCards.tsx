@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import Link from 'next/link';
 import { TrendingUp, TrendingDown } from 'lucide-react';
-import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts';
+import { PolarAngleAxis, PolarGrid, Radar, RadarChart, Label, Pie, PieChart } from 'recharts';
 import {
   ChartContainer,
   ChartTooltip,
@@ -76,18 +76,18 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   );
 
   return (
-    <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 relative flex flex-col">
+    <div className="bg-gray-50 rounded-lg border border-gray-200 p-3 relative flex flex-col">
       {/* Trend Badge */}
-      <div className={`absolute top-3 right-3 flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white ${changeColor}`}>
+      <div className={`absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-white ${changeColor}`}>
         {trendIcon}
         <span>{isPositive ? '+' : ''}{change}%</span>
       </div>
 
       {/* Title */}
-      <div className="text-gray-600 text-xs mb-3">{title}</div>
+      <div className="text-gray-600 text-xs mb-2">{title}</div>
 
       {/* Value */}
-      <div className="text-gray-900 text-2xl font-bold mb-1">{value}</div>
+      <div className="text-gray-900 text-xl font-bold mb-1">{value}</div>
 
       {/* Description 1 */}
       <div className="flex items-center gap-2 text-gray-600 text-xs mb-1">
@@ -138,26 +138,78 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
   const totalCoins = marketStats.totalCoins || 0;
   const marketCapChange = marketStats.marketCapChange24h || 0;
 
-  // Generate chart data based on market stats
-  const generateMarketCapChartData = () => {
+  // Generate last 6 months radar chart data
+  const generateLast6MonthsData = useMemo(() => {
+    const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+    const baseValue = marketCap || 2000000000000;
     const data = [];
     const today = new Date();
-    const baseValue = marketCap || 2000000000000;
     
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
+    // Get last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const monthIndex = date.getMonth();
+      const monthName = monthNames[monthIndex];
       
-      // Positive trend simulation
-      const progress = (29 - i) / 29;
-      const variation = Math.sin(i * 0.5) * 0.05 + Math.random() * 0.03;
+      // Simulate monthly variation - positive trend
+      const progress = (5 - i) / 5;
+      const variation = Math.sin((5 - i) * 0.8) * 0.1;
       const value = baseValue * (0.85 + progress * 0.15 + variation);
       
-      data.push({ date: dateStr, value: Math.round(value) });
+      data.push({
+        month: monthName,
+        revenue: Math.round(value / 1e12 * 100) / 100, // Convert to trillions with 2 decimals
+      });
     }
     return data;
-  };
+  }, [marketCap]);
+
+  const radarChartConfig = {
+    revenue: {
+      label: "Gelir",
+      color: "hsl(217.2, 91.2%, 59.8%)",
+    },
+  } satisfies ChartConfig;
+
+  // Generate last 5 days fear & greed data
+  const generateLast5DaysData = useMemo(() => {
+    const today = new Date();
+    const data = [];
+    const baseValue = fearGreedIndex || 50;
+    
+    // Generate last 5 days with variation
+    for (let i = 4; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dayName = date.toLocaleDateString('tr-TR', { weekday: 'short' });
+      
+      // Simulate daily variation
+      const variation = Math.sin(i * 0.5) * 10;
+      const value = Math.max(0, Math.min(100, baseValue + variation - (4 - i) * 2));
+      
+      // Mavinin farklı tonları - 5 dilim için
+      const blueShades = [
+        'hsl(217, 91%, 85%)', // Çok açık mavi (1. gün)
+        'hsl(217, 91%, 70%)', // Açık mavi (2. gün)
+        'hsl(217, 91%, 55%)', // Orta mavi (3. gün)
+        'hsl(217, 91%, 40%)', // Koyu mavi (4. gün)
+        'hsl(217, 91%, 25%)', // Çok koyu mavi (5. gün - bugün)
+      ];
+      
+      data.push({
+        day: dayName,
+        value: Math.round(value),
+        fill: blueShades[i],
+      });
+    }
+    return data;
+  }, [fearGreedIndex]);
+
+  const pieChartConfig = {
+    value: {
+      label: "Değer",
+    },
+  } satisfies ChartConfig;
 
   const generateCoinsChartData = () => {
     const data = [];
@@ -180,18 +232,63 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 px-6">
-      <DashboardCard
-        title="Toplam Gelir"
-        value={formatTrillion(marketCap)}
-        change={12.5}
-        description1=""
-        description2=""
-        trend="up"
-        chartData={generateMarketCapChartData()}
-        chartColor="hsl(217.2, 91.2%, 59.8%)"
-        showChart={false}
-      />
+    <>
+      {/* Toplam Gelir - Radar Chart */}
+      <div className="bg-gray-50 rounded-lg border border-gray-200 p-2 relative flex flex-col h-full">
+        {/* Trend Badge */}
+        <div className="absolute top-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-white text-green-500">
+          <TrendingUp className="w-3 h-3" />
+          <span>+{marketCapChange.toFixed(1)}%</span>
+        </div>
+
+        {/* Title */}
+        <div className="text-gray-600 text-xs mb-0.5">Toplam Gelir</div>
+
+        {/* Value */}
+        <div className="text-gray-900 text-xl font-bold mb-0.5">{formatTrillion(marketCap)}</div>
+
+        {/* Radar Chart */}
+        <div className="flex-1 flex items-center justify-center min-h-[180px] -mx-1 -my-1">
+          <ChartContainer
+            config={radarChartConfig}
+            className="w-full h-full max-h-[180px]"
+          >
+            <RadarChart data={generateLast6MonthsData}>
+              <ChartTooltip 
+                cursor={false} 
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0];
+                    return (
+                      <div className="bg-white border border-gray-200 rounded-lg p-2 shadow-lg">
+                        <p className="text-xs font-semibold text-gray-900">{data.payload.month}</p>
+                        <p className="text-xs text-gray-600">
+                          Gelir: <span className="font-semibold">${data.value}T</span>
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <PolarAngleAxis 
+                dataKey="month" 
+                tick={{ fontSize: 11, fill: '#6b7280' }}
+              />
+              <PolarGrid />
+              <Radar
+                dataKey="revenue"
+                fill="hsl(217.2, 91.2%, 59.8%)"
+                fillOpacity={0.6}
+                dot={{
+                  r: 5,
+                  fillOpacity: 1,
+                }}
+              />
+            </RadarChart>
+          </ChartContainer>
+        </div>
+      </div>
       <DashboardCard
         title="Toplam Coin Sayısı"
         value={formatNumber(totalCoins)}
@@ -203,45 +300,94 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
         chartColor="hsl(47.9, 95.8%, 53.1%)"
         showChart={false}
       />
-      {/* Korku ve Açgözlülük Bloğu - index.tsx'den alınan tasarım */}
-      <Link href="/fear-greed" className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer flex flex-col h-full">
-        <div className="flex items-center justify-between mb-2">
+      {/* Korku ve Açgözlülük Bloğu - Pie Chart */}
+      <div className="bg-white border border-gray-200 rounded-lg p-2 relative flex flex-col h-full">
+        <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-gray-700">Korku ve Açgözlülük</span>
-            <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+            <Link href="/fear-greed">
+              <svg className="w-3 h-3 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
           </div>
         </div>
-        <div className="mb-2">
-          <div className="text-2xl font-bold text-gray-900 mb-1">{fearGreedIndex}</div>
-          <div className="text-xs font-semibold" style={{
-            color: fearGreedIndex <= 25 ? '#ef4444' : fearGreedIndex <= 45 ? '#f59e0b' : fearGreedIndex <= 55 ? '#eab308' : fearGreedIndex <= 75 ? '#10b981' : '#059669'
-          }}>
-            {fearGreedClassification === 'Extreme Fear' ? 'Aşırı Korku' :
-             fearGreedClassification === 'Fear' ? 'Korku' :
-             fearGreedClassification === 'Neutral' ? 'Nötr' :
-             fearGreedClassification === 'Greed' ? 'Açgözlülük' :
-             fearGreedClassification === 'Extreme Greed' ? 'Aşırı Açgözlülük' :
-             'Nötr'}
-          </div>
+        
+        {/* Pie Chart */}
+        <div className="flex-1 flex items-center justify-center min-h-[180px] -mx-1 -my-1">
+          <ChartContainer
+            config={pieChartConfig}
+            className="w-full h-full max-h-[180px]"
+          >
+            <PieChart>
+              <ChartTooltip
+                cursor={false}
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="bg-white border border-gray-200 rounded-lg p-2 shadow-lg">
+                        <p className="text-xs font-semibold text-gray-900">{data.day}</p>
+                        <p className="text-xs text-gray-600">
+                          Değer: <span className="font-semibold" style={{ color: data.fill }}>{data.value}</span>
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Pie
+                data={generateLast5DaysData}
+                dataKey="value"
+                nameKey="day"
+                innerRadius={50}
+                outerRadius={70}
+                strokeWidth={3}
+                stroke="#fff"
+              >
+                <Label
+                  content={({ viewBox }) => {
+                    if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                      // Show today's value in center
+                      return (
+                        <text
+                          x={viewBox.cx}
+                          y={viewBox.cy}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                        >
+                          <tspan
+                            x={viewBox.cx}
+                            y={viewBox.cy}
+                            className="fill-gray-900 text-xl font-bold"
+                          >
+                            {fearGreedIndex}
+                          </tspan>
+                          <tspan
+                            x={viewBox.cx}
+                            y={(viewBox.cy || 0) + 18}
+                            className="fill-gray-600 text-xs"
+                          >
+                            {fearGreedClassification === 'Extreme Fear' ? 'Aşırı Korku' :
+                             fearGreedClassification === 'Fear' ? 'Korku' :
+                             fearGreedClassification === 'Neutral' ? 'Nötr' :
+                             fearGreedClassification === 'Greed' ? 'Açgözlülük' :
+                             fearGreedClassification === 'Extreme Greed' ? 'Aşırı Açgözlülük' :
+                             'Nötr'}
+                          </tspan>
+                        </text>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+              </Pie>
+            </PieChart>
+          </ChartContainer>
         </div>
-        {/* Horizontal Bar */}
-        <div className="relative h-6 rounded-full mt-2 overflow-hidden">
-          <div className="absolute inset-0 flex">
-            <div className="flex-1 bg-red-500"></div>
-            <div className="flex-1 bg-orange-500"></div>
-            <div className="flex-1 bg-yellow-400"></div>
-            <div className="flex-1 bg-green-500"></div>
-            <div className="flex-1 bg-emerald-600"></div>
-          </div>
-          <div 
-            className="absolute top-0 bottom-0 w-0.1 bg-white shadow-lg"
-            style={{ left: `${fearGreedIndex}%` }}
-          ></div>
-        </div>
-      </Link>
-    </div>
+      </div>
+    </>
   );
 };
 
