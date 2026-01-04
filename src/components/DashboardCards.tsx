@@ -2,8 +2,8 @@
 
 import React, { useMemo } from 'react';
 import Link from 'next/link';
-import { TrendingUp, TrendingDown } from 'lucide-react';
-import { PolarAngleAxis, PolarGrid, Radar, RadarChart, Label, Pie, PieChart } from 'recharts';
+import { TrendingUp, TrendingDown, GitCommitVertical } from 'lucide-react';
+import { PolarAngleAxis, PolarGrid, Radar, RadarChart, Label, Pie, PieChart, CartesianGrid, Line, LineChart, XAxis } from 'recharts';
 import {
   ChartContainer,
   ChartTooltip,
@@ -18,16 +18,7 @@ interface DashboardCardProps {
   description1: string;
   description2: string;
   trend: 'up' | 'down';
-  chartData?: Array<{ date: string; value: number }>;
-  chartColor?: string;
-  showChart?: boolean;
 }
-
-const chartConfig = {
-  value: {
-    label: "Değer",
-  },
-} satisfies ChartConfig
 
 const DashboardCard: React.FC<DashboardCardProps> = ({
   title,
@@ -36,9 +27,6 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   description1,
   description2,
   trend,
-  chartData = [],
-  chartColor = "hsl(217.2, 91.2%, 59.8%)",
-  showChart = true,
 }) => {
   const isPositive = trend === 'up';
   const changeColor = isPositive ? 'text-green-500' : 'text-red-500';
@@ -46,33 +34,6 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
     <TrendingUp className="w-3 h-3" />
   ) : (
     <TrendingDown className="w-3 h-3" />
-  );
-
-  // Generate chart data if not provided
-  const defaultChartData = useMemo(() => {
-    if (chartData.length > 0) return chartData;
-    
-    // Generate last 30 days of data
-    const data = [];
-    const today = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      
-      // Generate some variation based on trend
-      const baseValue = isPositive ? 100 + (29 - i) * 2 : 150 - (29 - i) * 2;
-      const variation = Math.sin(i * 0.5) * 20 + Math.random() * 30;
-      const value = Math.max(50, baseValue + variation);
-      
-      data.push({ date: dateStr, value: Math.round(value) });
-    }
-    return data;
-  }, [chartData, isPositive]);
-
-  const total = useMemo(
-    () => defaultChartData.reduce((acc, curr) => acc + curr.value, 0),
-    [defaultChartData]
   );
 
   return (
@@ -134,7 +95,6 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
   };
 
   const marketCap = marketStats.marketCap || 0;
-  const volume24h = marketStats.volume24h || 0;
   const totalCoins = marketStats.totalCoins || 0;
   const marketCapChange = marketStats.marketCapChange24h || 0;
 
@@ -211,47 +171,60 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
     },
   } satisfies ChartConfig;
 
-  const generateCoinsChartData = () => {
+  // Generate last 6 months coin count data for line chart
+  const generateLast6MonthsCoinData = useMemo(() => {
+    const monthNames = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+    const baseValue = totalCoins || 10000;
     const data = [];
     const today = new Date();
-    const baseValue = totalCoins || 10000;
     
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
+    // Get last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const monthIndex = date.getMonth();
+      const monthName = monthNames[monthIndex];
       
-      // Negative trend simulation
-      const progress = (29 - i) / 29;
-      const variation = Math.sin(i * 0.5) * 0.1 + Math.random() * 0.05;
-      const value = baseValue * (1.2 - progress * 0.2 - variation);
+      // Simulate monthly variation - positive trend
+      const progress = (5 - i) / 5;
+      const variation = Math.sin((5 - i) * 0.8) * 0.05;
+      const value = baseValue * (0.9 + progress * 0.1 + variation);
       
-      data.push({ date: dateStr, value: Math.round(value) });
+      data.push({
+        month: monthName,
+        coins: Math.round(value),
+      });
     }
     return data;
-  };
+  }, [totalCoins]);
+
+  const lineChartConfig = {
+    coins: {
+      label: "Coin Sayısı",
+      color: "hsl(217.2, 91.2%, 35%)",
+    },
+  } satisfies ChartConfig;
 
   return (
     <>
       {/* Toplam Gelir - Radar Chart */}
       <div className="bg-gray-50 rounded-lg border border-gray-200 p-2 relative flex flex-col h-full">
         {/* Trend Badge */}
-        <div className="absolute top-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-white text-green-500">
+        <div className="absolute top-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-white text-black">
           <TrendingUp className="w-3 h-3" />
           <span>+{marketCapChange.toFixed(1)}%</span>
         </div>
 
         {/* Title */}
-        <div className="text-gray-600 text-xs mb-0.5">Toplam Gelir</div>
+        <div className="text-gray-600 text-xs mb-0">Toplam Gelir</div>
 
         {/* Value */}
-        <div className="text-gray-900 text-xl font-bold mb-0.5">{formatTrillion(marketCap)}</div>
+        <div className="text-gray-900 text-xl font-bold mb-0">{formatTrillion(marketCap)}</div>
 
         {/* Radar Chart */}
-        <div className="flex-1 flex items-center justify-center min-h-[180px] -mx-1 -my-1">
+        <div className="flex-1 flex items-center justify-center min-h-[240px] -mx-2 -my-2">
           <ChartContainer
             config={radarChartConfig}
-            className="w-full h-full max-h-[180px]"
+            className="w-full h-full max-h-[240px]"
           >
             <RadarChart data={generateLast6MonthsData}>
               <ChartTooltip 
@@ -289,20 +262,77 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
           </ChartContainer>
         </div>
       </div>
-      <DashboardCard
-        title="Toplam Coin Sayısı"
-        value={formatNumber(totalCoins)}
-        change={0.8}
-        description1=""
-        description2=""
-        trend="up"
-        chartData={generateCoinsChartData()}
-        chartColor="hsl(47.9, 95.8%, 53.1%)"
-        showChart={false}
-      />
+      {/* Toplam Coin Sayısı - Line Chart */}
+      <div className="bg-gray-50 rounded-lg border border-gray-200 p-2 relative flex flex-col h-full">
+        {/* Trend Badge */}
+        <div className="absolute top-1.5 right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium bg-white text-black">
+          <TrendingUp className="w-3 h-3" />
+          <span>+0.8%</span>
+        </div>
+
+        {/* Title */}
+        <div className="text-gray-600 text-xs mb-0.5">Toplam Coin Sayısı</div>
+
+        {/* Value */}
+        <div className="text-gray-900 text-xl font-bold mb-0.5">{formatNumber(totalCoins)}</div>
+
+        {/* Line Chart */}
+        <div className="flex-1 flex items-center justify-center min-h-[180px] -mx-1 -my-1">
+          <ChartContainer
+            config={lineChartConfig}
+            className="w-full h-full max-h-[180px]"
+          >
+            <LineChart
+              accessibilityLayer
+              data={generateLast6MonthsCoinData}
+              margin={{
+                left: 12,
+                right: 12,
+                top: 12,
+                bottom: 12,
+              }}
+            >
+              <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis
+                dataKey="month"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                tick={{ fontSize: 11, fill: '#6b7280' }}
+                tickFormatter={(value) => value.slice(0, 3)}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={<ChartTooltipContent hideLabel />}
+              />
+              <Line
+                dataKey="coins"
+                type="natural"
+                stroke="hsl(217.2, 91.2%, 35%)"
+                strokeWidth={2}
+                dot={({ cx, cy, payload }) => {
+                  if (cx === undefined || cy === undefined) return null;
+                  const r = 24;
+                  return (
+                    <GitCommitVertical
+                      key={payload.month}
+                      x={cx - r / 2}
+                      y={cy - r / 2}
+                      width={r}
+                      height={r}
+                      fill="hsl(var(--background))"
+                      stroke="hsl(217.2, 91.2%, 35%)"
+                    />
+                  );
+                }}
+              />
+            </LineChart>
+          </ChartContainer>
+        </div>
+      </div>
       {/* Korku ve Açgözlülük Bloğu - Pie Chart */}
       <div className="bg-white border border-gray-200 rounded-lg p-2 relative flex flex-col h-full">
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between mb-0">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-gray-700">Korku ve Açgözlülük</span>
             <Link href="/fear-greed">
@@ -314,10 +344,10 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
         </div>
         
         {/* Pie Chart */}
-        <div className="flex-1 flex items-center justify-center min-h-[180px] -mx-1 -my-1">
+        <div className="flex-1 flex items-center justify-center min-h-[240px] -mx-2 -my-2">
           <ChartContainer
             config={pieChartConfig}
-            className="w-full h-full max-h-[180px]"
+            className="w-full h-full max-h-[240px]"
           >
             <PieChart>
               <ChartTooltip
@@ -341,8 +371,8 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
                 data={generateLast5DaysData}
                 dataKey="value"
                 nameKey="day"
-                innerRadius={50}
-                outerRadius={70}
+                innerRadius={60}
+                outerRadius={85}
                 strokeWidth={3}
                 stroke="#fff"
               >

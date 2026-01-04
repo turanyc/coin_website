@@ -824,7 +824,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
                 setOpenDropdown(null);
               }
             }}
-            className={`w-full px-4 py-3 flex items-center gap-3 text-white hover:bg-purple-700 transition-colors cursor-pointer bg-gradient-to-r from-purple-600 to-pink-600 ${navbarExpanded ? 'justify-start' : 'justify-center'}`}
+            className={`w-full px-4 py-3 flex items-center gap-3 text-white hover:opacity-90 transition-colors cursor-pointer bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 ${navbarExpanded ? 'justify-start' : 'justify-center'}`}
             title="Dijital Marketim AI"
           >
             <Sparkles className="w-5 h-5 shrink-0" />

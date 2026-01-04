@@ -136,7 +136,7 @@ const chartConfig = {
   },
   derivatives: {
     label: "Türev Hacmi",
-    color: "hsl(142.1, 76.2%, 36.3%)",
+    color: "hsl(217.2, 91.2%, 45%)",
   },
 } satisfies ChartConfig
 
@@ -151,7 +151,7 @@ const formatVolume = (volume: number) => {
 }
 
 export function VolumeChart({ data = defaultChartData }: VolumeChartProps) {
-  const [timeRange, setTimeRange] = React.useState("90d")
+  const [timeRange, setTimeRange] = React.useState("7d")
   const [chartData, setChartData] = React.useState(data)
 
   // Fetch real volume data from API and generate dates ending with today
@@ -253,11 +253,11 @@ export function VolumeChart({ data = defaultChartData }: VolumeChartProps) {
   const getDescription = () => {
     switch (timeRange) {
       case "7d":
+      default:
         return "Son 7 gün için toplam piyasa hacmini gösteriyor"
       case "30d":
         return "Son 30 gün için toplam piyasa hacmini gösteriyor"
       case "90d":
-      default:
         return "Son 3 ay için toplam piyasa hacmini gösteriyor"
     }
   }
@@ -276,7 +276,7 @@ export function VolumeChart({ data = defaultChartData }: VolumeChartProps) {
             className="hidden w-[160px] rounded-lg sm:ml-auto sm:flex bg-white border-gray-300 text-gray-900"
             aria-label="Bir değer seçin"
           >
-            <SelectValue placeholder="Son 3 ay" />
+            <SelectValue placeholder="Son 7 gün" />
           </SelectTrigger>
           <SelectContent className="rounded-xl bg-white border-gray-300">
             <SelectItem value="90d" className="rounded-lg text-gray-900 hover:bg-gray-100">
