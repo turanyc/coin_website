@@ -405,7 +405,7 @@ const ToplulukPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white pt-20">
       <Head>
         <title>Topluluk | Dijital Marketim</title>
       </Head>
@@ -414,7 +414,7 @@ const ToplulukPage: React.FC = () => {
 
       <div className="flex w-full">
         {/* Sol Sidebar - Trending Coins */}
-        <aside className="w-80 bg-gray-50 border-r border-gray-200 p-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 80px)' }}>
+        <aside className="w-80 bg-gray-50 border-r border-gray-200 p-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 100px)' }}>
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-sm font-semibold text-gray-700">
@@ -796,7 +796,7 @@ const ToplulukPage: React.FC = () => {
         </main>
 
         {/* Sağ Sidebar */}
-        <aside className="w-80 bg-gray-50 border-l border-gray-200 p-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 80px)' }}>
+        <aside className="w-80 bg-gray-50 border-l border-gray-200 p-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 100px)' }}>
           {/* Hot Topic */}
           {hotTopic && (
             <div className="mb-6 bg-white rounded-lg border border-gray-200 p-4">

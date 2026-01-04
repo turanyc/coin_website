@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import MarketStatsBar from '../components/MarketStatsBar';
 import DashboardCards from '../components/DashboardCards';
 import { VolumeChart } from '../components/VolumeChart';
+import CryptoMarketList from '../components/CryptoMarketList';
 import logoImage from '../img/cripto_logo.png';
 
 interface MarketStats {
@@ -32,6 +33,8 @@ const HomePage: React.FC = () => {
   const [navbarExpanded, setNavbarExpanded] = useState(false);
   const [fearGreedIndex, setFearGreedIndex] = useState(50);
   const [fearGreedClassification, setFearGreedClassification] = useState('Neutral');
+  const [todayGainers, setTodayGainers] = useState<any[]>([]);
+  const [todayLosers, setTodayLosers] = useState<any[]>([]);
 
   // Fetch Fear & Greed Index
   useEffect(() => {
@@ -86,6 +89,25 @@ const HomePage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch gainers and losers
+  useEffect(() => {
+    const fetchGainersLosers = async () => {
+      try {
+        const response = await fetch('/api/gainers-losers?timeframe=24h&limit=10');
+        if (response.ok) {
+          const data = await response.json();
+          setTodayGainers(data.gainers || []);
+          setTodayLosers(data.losers || []);
+        }
+      } catch (error) {
+        console.error('Error fetching gainers/losers:', error);
+      }
+    };
+    fetchGainersLosers();
+    const interval = setInterval(fetchGainersLosers, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
+
 
   return (
     <>
@@ -117,6 +139,9 @@ const HomePage: React.FC = () => {
               <VolumeChart />
                           </div>
                               </div>
+          
+          {/* Crypto Market List */}
+          <CryptoMarketList />
           </div>
         </div>
 
