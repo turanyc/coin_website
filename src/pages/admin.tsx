@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
+import Image from 'next/image';
 import { useRouter } from 'next/router';
 import Navbar from '../components/Navbar';
 import {
@@ -16,7 +17,6 @@ import {
   CheckCircle,
   XCircle,
   Search,
-  Filter,
   RefreshCw
 } from 'lucide-react';
 
@@ -39,8 +39,15 @@ interface AdminStats {
   newUsersThisMonth: number;
 }
 
+interface UserData {
+  id?: number;
+  user_id?: number;
+  email?: string;
+  name?: string;
+  full_name?: string;
+}
+
 const AdminPanel: React.FC = () => {
-  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -55,54 +62,7 @@ const AdminPanel: React.FC = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUser = localStorage.getItem('currentUser');
-      if (storedUser) {
-        try {
-          const userData = JSON.parse(storedUser);
-          setUser(userData);
-          // Admin kontrolü - API'den kontrol edilecek
-          checkAdminAccess(userData);
-        } catch {
-          router.push('/login');
-        }
-      } else {
-        router.push('/login');
-      }
-    }
-  }, [router]);
-
-  const checkAdminAccess = async (userData: any) => {
-    try {
-      const response = await fetch('/api/admin/check-access', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userData.id || userData.user_id }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.is_admin) {
-          setLoading(false);
-          fetchStats();
-          fetchUsers();
-        } else {
-          alert('Bu sayfaya erişim yetkiniz yok.');
-          router.push('/');
-        }
-      } else {
-        alert('Admin kontrolü yapılamadı.');
-        router.push('/');
-      }
-    } catch (error) {
-      console.error('Admin check error:', error);
-      alert('Bir hata oluştu.');
-      router.push('/');
-    }
-  };
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     setLoadingStats(true);
     try {
       const response = await fetch('/api/admin/stats');
@@ -115,9 +75,9 @@ const AdminPanel: React.FC = () => {
     } finally {
       setLoadingStats(false);
     }
-  };
+  }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoadingUsers(true);
     try {
       const response = await fetch('/api/admin/users');
@@ -131,7 +91,64 @@ const AdminPanel: React.FC = () => {
     } finally {
       setLoadingUsers(false);
     }
-  };
+  }, []);
+
+  const checkAdminAccess = useCallback(async (userData: UserData) => {
+    try {
+      const userId = userData.id || userData.user_id;
+      
+      if (!userId) {
+        alert('Kullanıcı bilgisi bulunamadı. Lütfen tekrar giriş yapın.');
+        router.push('/login');
+        return;
+      }
+
+      const response = await fetch('/api/admin/check-access', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.is_admin) {
+          setLoading(false);
+          fetchStats();
+          fetchUsers();
+        } else {
+          alert('Bu sayfaya erişim yetkiniz yok. Admin yetkisi gerekli.');
+          router.push('/');
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Admin check failed:', errorData);
+        alert(`Admin kontrolü yapılamadı: ${errorData.message || 'Bilinmeyen hata'}`);
+        router.push('/');
+      }
+    } catch (error) {
+      const err = error as Error;
+      console.error('Admin check error:', err);
+      alert(`Bir hata oluştu: ${err.message || 'Bilinmeyen hata'}`);
+      router.push('/');
+    }
+  }, [router, fetchStats, fetchUsers]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem('currentUser');
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser) as UserData;
+          // Admin kontrolü - API'den kontrol edilecek
+          checkAdminAccess(userData);
+        } catch {
+          router.push('/login');
+        }
+      } else {
+        router.push('/login');
+      }
+    }
+  }, [router, checkAdminAccess]);
 
   useEffect(() => {
     let filtered = users;
@@ -459,11 +476,13 @@ const AdminPanel: React.FC = () => {
                             <tr key={u.id} className="hover:bg-gray-50">
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
-                                  <div className="flex-shrink-0 h-10 w-10">
+                                  <div className="shrink-0 h-10 w-10">
                                     {u.profile_picture_url ? (
-                                      <img
+                                      <Image
                                         src={u.profile_picture_url}
                                         alt={u.full_name || u.email}
+                                        width={40}
+                                        height={40}
                                         className="h-10 w-10 rounded-full object-cover"
                                       />
                                     ) : (

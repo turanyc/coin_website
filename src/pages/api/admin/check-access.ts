@@ -13,11 +13,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    // Önce is_admin kolonunun var olup olmadığını kontrol et ve yoksa ekle
+    try {
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE');
+    } catch (error: any) {
+      // Kolon zaten varsa veya başka bir hata varsa devam et
+      if (!error.message?.includes('already exists') && !error.message?.includes('duplicate column')) {
+        console.log('is_admin kolonu kontrolü:', error.message);
+      }
+    }
+
     // Kullanıcıyı bul ve admin durumunu kontrol et
-    const result = await pool.query(
-      'SELECT id, email, is_admin FROM users WHERE id = $1',
-      [user_id]
-    );
+    let result;
+    try {
+      result = await pool.query(
+        'SELECT id, email, COALESCE(is_admin, false) as is_admin FROM users WHERE id = $1',
+        [user_id]
+      );
+    } catch (error: any) {
+      // Eğer is_admin kolonu hala yoksa, sadece id ve email'i getir
+      if (error.message?.includes('column') && error.message?.includes('is_admin')) {
+        result = await pool.query(
+          'SELECT id, email FROM users WHERE id = $1',
+          [user_id]
+        );
+      } else {
+        throw error;
+      }
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Kullanıcı bulunamadı.' });
@@ -26,18 +49,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = result.rows[0];
 
     // Eğer is_admin kolonu yoksa, varsayılan olarak false döndür
-    // Veritabanında is_admin kolonu yoksa, bu kolonu eklemek gerekir:
-    // ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
-    const isAdmin = user.is_admin || false;
+    const isAdmin = user.is_admin !== undefined ? user.is_admin : false;
 
     res.status(200).json({
       is_admin: isAdmin,
       user_id: user.id,
       email: user.email,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin check error:', error);
-    res.status(500).json({ message: 'Sunucu hatası oluştu.' });
+    res.status(500).json({ 
+      message: 'Sunucu hatası oluştu.',
+      error: error.message || 'Bilinmeyen hata'
+    });
   }
 }
 
