@@ -549,53 +549,45 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
                 className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50" 
                 data-dropdown="crypto"
               >
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Link href="/currencies/ranking" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
                     <TrendingUp className="w-4 h-4" />
                     <span>Piyasa Değerine Göre</span>
                   </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Link href="/currencies/recently-added" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                    <Sparkles className="w-4 h-4" />
+                    <span>En Son Eklenenler</span>
+                  </Link>
+                  <Link href="/categories" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
                     <Layers className="w-4 h-4" />
                     <span>Kategoriler</span>
                   </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Database className="w-4 h-4" />
-                    <span>Zincirler</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Wallet className="w-4 h-4" />
-                    <span>Kripto Para Hazineleri</span>
-                  </Link>
-                  <div className="border-t border-gray-200 my-1"></div>
-                  <div className="px-4 py-1">
-                    <span className="text-xs text-gray-500 uppercase font-semibold">Popüler</span>
-                  </div>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Sparkles className="w-4 h-4" />
+                  <Link href="/spotlight" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                    <Target className="w-4 h-4" />
                     <span>Vurgular</span>
                   </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <TrendingUp className="w-4 h-4" />
-                    <span>Yeni Kripto Paralar</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Link href="/gainers-losers" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
                     <ArrowUpDown className="w-4 h-4" />
                     <span>Kazandıran ve Kaybettirenler</span>
                   </Link>
+                  <Link href="/global-charts" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                    <Globe className="w-4 h-4" />
+                    <span>Küresel Grafikler</span>
+                  </Link>
+                  <Link href="/historical-snapshots" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                    <Database className="w-4 h-4" />
+                    <span>Geçmiş Veriler</span>
+                  </Link>
                   <div className="border-t border-gray-200 my-1"></div>
                   <div className="px-4 py-1">
-                    <span className="text-xs text-gray-500 uppercase font-semibold">Araçlar</span>
+                    <span className="text-xs text-gray-500 uppercase font-semibold">Zincir Verileri</span>
                   </div>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Coins className="w-4 h-4" />
-                    <span>Tüm Koyunlar</span>
+                  <Link href="/chains" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                    <Database className="w-4 h-4" />
+                    <span>Zincirler</span>
                   </Link>
-                  <Link href="/converter" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    <ArrowRightLeft className="w-4 h-4" />
-                    <span>Dönüştürücü</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Globe className="w-4 h-4" />
-                    <span>Küresel Grafik</span>
+                  <Link href="/crypto-treasuries" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                    <Wallet className="w-4 h-4" />
+                    <span>Kripto Para Hazineleri</span>
                   </Link>
                 </div>
               )}
