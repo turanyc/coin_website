@@ -104,18 +104,18 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
     const baseValue = marketCap || 2000000000000;
     const data = [];
     const today = new Date();
-    
+
     // Get last 6 months
     for (let i = 5; i >= 0; i--) {
       const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
       const monthIndex = date.getMonth();
       const monthName = monthNames[monthIndex];
-      
+
       // Simulate monthly variation - positive trend
       const progress = (5 - i) / 5;
       const variation = Math.sin((5 - i) * 0.8) * 0.1;
       const value = baseValue * (0.85 + progress * 0.15 + variation);
-      
+
       data.push({
         month: monthName,
         revenue: Math.round(value / 1e12 * 100) / 100, // Convert to trillions with 2 decimals
@@ -136,17 +136,17 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
     const today = new Date();
     const data = [];
     const baseValue = fearGreedIndex || 50;
-    
+
     // Generate last 5 days with variation
     for (let i = 4; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       const dayName = date.toLocaleDateString('tr-TR', { weekday: 'short' });
-      
+
       // Simulate daily variation
       const variation = Math.sin(i * 0.5) * 10;
       const value = Math.max(0, Math.min(100, baseValue + variation - (4 - i) * 2));
-      
+
       // Mavinin farklı tonları - 5 dilim için
       const blueShades = [
         'hsl(217, 91%, 85%)', // Çok açık mavi (1. gün)
@@ -155,7 +155,7 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
         'hsl(217, 91%, 40%)', // Koyu mavi (4. gün)
         'hsl(217, 91%, 25%)', // Çok koyu mavi (5. gün - bugün)
       ];
-      
+
       data.push({
         day: dayName,
         value: Math.round(value),
@@ -177,18 +177,18 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
     const baseValue = totalCoins || 10000;
     const data = [];
     const today = new Date();
-    
+
     // Get last 6 months
     for (let i = 5; i >= 0; i--) {
       const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
       const monthIndex = date.getMonth();
       const monthName = monthNames[monthIndex];
-      
+
       // Simulate monthly variation - positive trend
       const progress = (5 - i) / 5;
       const variation = Math.sin((5 - i) * 0.8) * 0.05;
       const value = baseValue * (0.9 + progress * 0.1 + variation);
-      
+
       data.push({
         month: monthName,
         coins: Math.round(value),
@@ -227,8 +227,8 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
             className="w-full h-full max-h-[240px]"
           >
             <RadarChart data={generateLast6MonthsData}>
-              <ChartTooltip 
-                cursor={false} 
+              <ChartTooltip
+                cursor={false}
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
                     const data = payload[0];
@@ -244,8 +244,8 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
                   return null;
                 }}
               />
-              <PolarAngleAxis 
-                dataKey="month" 
+              <PolarAngleAxis
+                dataKey="month"
                 tick={{ fontSize: 11, fill: '#6b7280' }}
               />
               <PolarGrid />
@@ -253,6 +253,7 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
                 dataKey="revenue"
                 fill="hsl(217.2, 91.2%, 59.8%)"
                 fillOpacity={0.6}
+                isAnimationActive={false}
                 dot={{
                   r: 5,
                   fillOpacity: 1,
@@ -310,6 +311,7 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
                 type="natural"
                 stroke="hsl(217.2, 91.2%, 35%)"
                 strokeWidth={2}
+                isAnimationActive={false}
                 dot={({ cx, cy, payload }) => {
                   if (cx === undefined || cy === undefined) return null;
                   const r = 24;
@@ -342,7 +344,7 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
             </Link>
           </div>
         </div>
-        
+
         {/* Pie Chart */}
         <div className="flex-1 flex items-center justify-center min-h-[240px] -mx-2 -my-2">
           <ChartContainer
@@ -375,6 +377,7 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
                 outerRadius={85}
                 strokeWidth={3}
                 stroke="#fff"
+                isAnimationActive={false}
               >
                 <Label
                   content={({ viewBox }) => {
@@ -400,11 +403,11 @@ const DashboardCards: React.FC<DashboardCardsProps> = ({ marketStats = {}, fearG
                             className="fill-gray-600 text-xs"
                           >
                             {fearGreedClassification === 'Extreme Fear' ? 'Aşırı Korku' :
-                             fearGreedClassification === 'Fear' ? 'Korku' :
-                             fearGreedClassification === 'Neutral' ? 'Nötr' :
-                             fearGreedClassification === 'Greed' ? 'Açgözlülük' :
-                             fearGreedClassification === 'Extreme Greed' ? 'Aşırı Açgözlülük' :
-                             'Nötr'}
+                              fearGreedClassification === 'Fear' ? 'Korku' :
+                                fearGreedClassification === 'Neutral' ? 'Nötr' :
+                                  fearGreedClassification === 'Greed' ? 'Açgözlülük' :
+                                    fearGreedClassification === 'Extreme Greed' ? 'Aşırı Açgözlülük' :
+                                      'Nötr'}
                           </tspan>
                         </text>
                       );

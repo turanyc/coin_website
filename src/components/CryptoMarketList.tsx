@@ -32,6 +32,8 @@ interface User {
   user_id?: string;
 }
 
+import { getMockCoins } from '@/lib/mockData';
+
 const CryptoMarketList: React.FC = () => {
   const router = useRouter();
   const [coins, setCoins] = useState<Coin[]>([]);
@@ -99,11 +101,15 @@ const CryptoMarketList: React.FC = () => {
   useEffect(() => {
     const fetchCoins = async () => {
       try {
-        const response = await fetch('/api/coins');
-        if (response.ok) {
-          const data = await response.json();
-          setCoins(data.slice(0, 100)); // Top 100 coins
-        }
+        // MOCK DATA: Instead of fetch, use mock data
+        // const response = await fetch('/api/coins');
+        // if (response.ok) {
+        //   const data = await response.json();
+        //   setCoins(data.slice(0, 100)); // Top 100 coins
+        // }
+        const data = getMockCoins();
+        // @ts-ignore
+        setCoins(data);
       } catch (error) {
         console.error('Error fetching coins:', error);
       } finally {
@@ -112,9 +118,9 @@ const CryptoMarketList: React.FC = () => {
     };
 
     fetchCoins();
-    const interval = setInterval(fetchCoins, 60000); // Update every minute
-
-    return () => clearInterval(interval);
+    // Disable interval to avoid unnecessary updates with mock data loops
+    // const interval = setInterval(fetchCoins, 60000); 
+    // return () => clearInterval(interval);
   }, []);
 
   // Toggle watchlist
@@ -191,7 +197,7 @@ const CryptoMarketList: React.FC = () => {
     const basePrice = coin.current_price;
     const change24h = coin.price_change_percentage_24h || 0;
     const change7d = coin.price_change_percentage_7d || 0;
-    
+
     const data = [];
     for (let i = 6; i >= 0; i--) {
       const progress = (6 - i) / 6;
@@ -233,7 +239,7 @@ const CryptoMarketList: React.FC = () => {
                   #
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-16">
-                  
+
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[200px]">
                   Coin
@@ -281,11 +287,10 @@ const CryptoMarketList: React.FC = () => {
                     <td className="px-4 py-4">
                       <button
                         onClick={(e) => toggleWatchlist(coin, e)}
-                        className={`p-1.5 rounded-lg transition-all ${
-                          isInWatchlist
-                            ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-                            : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
-                        }`}
+                        className={`p-1.5 rounded-lg transition-all ${isInWatchlist
+                          ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                          : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                          }`}
                         title={isInWatchlist ? 'İzleme listesinden kaldır' : 'İzleme listesine ekle'}
                       >
                         <Bookmark className={`w-4 h-4 ${isInWatchlist ? 'fill-current' : ''}`} />
@@ -311,9 +316,8 @@ const CryptoMarketList: React.FC = () => {
                     <td className="px-4 py-4 text-right text-sm font-semibold text-gray-900">
                       ${formatPrice(coin.current_price)}
                     </td>
-                    <td className={`px-4 py-4 text-right text-sm font-medium ${
-                      isPositive1h ? 'text-green-600' : 'text-red-600'
-                    }`}>
+                    <td className={`px-4 py-4 text-right text-sm font-medium ${isPositive1h ? 'text-green-600' : 'text-red-600'
+                      }`}>
                       <div className="flex items-center justify-end gap-1">
                         {isPositive1h ? (
                           <TrendingUp className="w-3 h-3" />
@@ -326,9 +330,8 @@ const CryptoMarketList: React.FC = () => {
                         </span>
                       </div>
                     </td>
-                    <td className={`px-4 py-4 text-right text-sm font-medium ${
-                      isPositive24h ? 'text-green-600' : 'text-red-600'
-                    }`}>
+                    <td className={`px-4 py-4 text-right text-sm font-medium ${isPositive24h ? 'text-green-600' : 'text-red-600'
+                      }`}>
                       <div className="flex items-center justify-end gap-1">
                         {isPositive24h ? (
                           <TrendingUp className="w-3 h-3" />
@@ -341,9 +344,8 @@ const CryptoMarketList: React.FC = () => {
                         </span>
                       </div>
                     </td>
-                    <td className={`px-4 py-4 text-right text-sm font-medium ${
-                      isPositive7d ? 'text-green-600' : 'text-red-600'
-                    }`}>
+                    <td className={`px-4 py-4 text-right text-sm font-medium ${isPositive7d ? 'text-green-600' : 'text-red-600'
+                      }`}>
                       <div className="flex items-center justify-end gap-1">
                         {isPositive7d ? (
                           <TrendingUp className="w-3 h-3" />
@@ -389,6 +391,7 @@ const CryptoMarketList: React.FC = () => {
                               stroke={isPositive7d ? "hsl(217.2, 91.2%, 59.8%)" : "hsl(0, 84.2%, 60.2%)"}
                               fill={`url(#fill-${coin.id})`}
                               strokeWidth={1.5}
+                              isAnimationActive={false}
                             />
                           </AreaChart>
                         </ChartContainer>

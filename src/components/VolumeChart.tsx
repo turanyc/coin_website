@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import ClientOnly from "./ClientOnly"
 
 interface VolumeChartProps {
   data?: Array<{ date: string; spot: number; derivatives: number; totalRevenue?: number }>;
@@ -161,32 +162,32 @@ export function VolumeChart({ data = defaultChartData }: VolumeChartProps) {
         // Global stats'tan güncel volume verisi al
         const response = await fetch('/api/global')
         const currentVolume24h = response.ok ? (await response.json()).volume24h || 0 : 0
-        
+
         // Bugünün tarihini al
         const today = new Date()
         today.setHours(0, 0, 0, 0)
-        
+
         // Historical data oluştur - son 90 günü bugüne kadar
         const daysCount = 90
         const historicalData = []
-        
+
         for (let i = daysCount - 1; i >= 0; i--) {
           const date = new Date(today)
           date.setDate(date.getDate() - i)
-          
+
           // Tarih formatı: YYYY-MM-DD
           const dateStr = date.toISOString().split('T')[0]
-          
+
           // Default data'dan ilgili index'i bul (circular pattern)
           const dataIndex = (daysCount - 1 - i) % defaultChartData.length
           const baseData = defaultChartData[dataIndex]
-          
+
           // Scale factor ile gerçek verilere yakın değerler oluştur
           const scaleFactor = currentVolume24h > 0 ? currentVolume24h / 100000 : 1
           const baseSpot = baseData.spot * scaleFactor
           const baseDerivatives = baseData.derivatives * scaleFactor
           const totalRevenue = baseSpot + baseDerivatives
-          
+
           historicalData.push({
             date: dateStr,
             spot: Math.round(baseSpot),
@@ -194,7 +195,7 @@ export function VolumeChart({ data = defaultChartData }: VolumeChartProps) {
             totalRevenue: Math.round(totalRevenue)
           })
         }
-        
+
         setChartData(historicalData)
       } catch (error) {
         console.error('Volume data fetch error:', error)
@@ -203,14 +204,14 @@ export function VolumeChart({ data = defaultChartData }: VolumeChartProps) {
         today.setHours(0, 0, 0, 0)
         const daysCount = 90
         const fallbackData = []
-        
+
         for (let i = daysCount - 1; i >= 0; i--) {
           const date = new Date(today)
           date.setDate(date.getDate() - i)
           const dateStr = date.toISOString().split('T')[0]
           const dataIndex = (daysCount - 1 - i) % defaultChartData.length
           const baseData = defaultChartData[dataIndex]
-          
+
           fallbackData.push({
             date: dateStr,
             spot: baseData.spot,
@@ -218,7 +219,7 @@ export function VolumeChart({ data = defaultChartData }: VolumeChartProps) {
             totalRevenue: baseData.spot + baseData.derivatives
           })
         }
-        
+
         setChartData(fallbackData)
       }
     }
@@ -228,21 +229,21 @@ export function VolumeChart({ data = defaultChartData }: VolumeChartProps) {
 
   const filteredData = React.useMemo(() => {
     if (chartData.length === 0) return []
-    
+
     // Bugünün tarihini referans olarak al
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    
+
     let daysToSubtract = 90
     if (timeRange === "30d") {
       daysToSubtract = 30
     } else if (timeRange === "7d") {
       daysToSubtract = 7
     }
-    
+
     const startDate = new Date(today)
     startDate.setDate(startDate.getDate() - daysToSubtract)
-    
+
     return chartData.filter((item) => {
       const itemDate = new Date(item.date)
       itemDate.setHours(0, 0, 0, 0)
@@ -292,119 +293,123 @@ export function VolumeChart({ data = defaultChartData }: VolumeChartProps) {
         </Select>
       </CardHeader>
       <CardContent className="px-2 pt-3 sm:px-4 sm:pt-4">
-        <ChartContainer
-          config={chartConfig}
-          className="aspect-auto h-[180px] w-full"
-        >
-          <AreaChart data={filteredData}>
-            <defs>
-              <linearGradient id="fillSpot" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor="var(--color-spot)"
-                  stopOpacity={0.8}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="var(--color-spot)"
-                  stopOpacity={0.1}
-                />
-              </linearGradient>
-              <linearGradient id="fillDerivatives" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor="var(--color-derivatives)"
-                  stopOpacity={0.8}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="var(--color-derivatives)"
-                  stopOpacity={0.1}
-                />
-              </linearGradient>
-            </defs>
-            <CartesianGrid vertical={false} stroke="#E5E7EB" />
-            <XAxis
-              dataKey="date"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              minTickGap={32}
-              tick={{ fill: '#6B7280' }}
-              tickFormatter={(value) => {
-                const date = new Date(value)
-                return date.toLocaleDateString("tr-TR", {
-                  month: "short",
-                  day: "numeric",
-                })
-              }}
-            />
-            <ChartTooltip
-              cursor={false}
-              content={(props) => {
-                const { active, payload, label } = props
-                if (active && payload && payload.length) {
-                  const spotValue = payload.find((p) => p.dataKey === 'spot')?.value || 0
-                  const derivativesValue = payload.find((p) => p.dataKey === 'derivatives')?.value || 0
-                  const totalRevenue = (spotValue as number) + (derivativesValue as number)
-                  const data = payload[0]?.payload
-                  
-                  return (
-                    <div className="bg-white border border-gray-200 rounded-lg shadow-xl p-3">
-                      <div className="font-medium mb-2 text-gray-900">
-                        {new Date(label).toLocaleDateString("tr-TR", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric"
-                        })}
-                      </div>
-                      <div className="space-y-1">
-                        {payload.map((entry, index) => (
-                          <div key={index} className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="w-2 h-2 rounded-full"
-                                style={{ backgroundColor: entry.color }}
-                              />
-                              <span className="text-xs text-gray-600">{entry.name}</span>
+        <ClientOnly fallback={<div className="h-[180px] w-full flex items-center justify-center text-gray-400">Grafik yükleniyor...</div>}>
+          <ChartContainer
+            config={chartConfig}
+            className="aspect-auto h-[180px] w-full"
+          >
+            <AreaChart data={filteredData}>
+              <defs>
+                <linearGradient id="fillSpot" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="5%"
+                    stopColor="var(--color-spot)"
+                    stopOpacity={0.8}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="var(--color-spot)"
+                    stopOpacity={0.1}
+                  />
+                </linearGradient>
+                <linearGradient id="fillDerivatives" x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="5%"
+                    stopColor="var(--color-derivatives)"
+                    stopOpacity={0.8}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="var(--color-derivatives)"
+                    stopOpacity={0.1}
+                  />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke="#E5E7EB" />
+              <XAxis
+                dataKey="date"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                minTickGap={32}
+                tick={{ fill: '#6B7280' }}
+                tickFormatter={(value) => {
+                  const date = new Date(value)
+                  return date.toLocaleDateString("tr-TR", {
+                    month: "short",
+                    day: "numeric",
+                  })
+                }}
+              />
+              <ChartTooltip
+                cursor={false}
+                content={(props) => {
+                  const { active, payload, label } = props
+                  if (active && payload && payload.length) {
+                    const spotValue = payload.find((p) => p.dataKey === 'spot')?.value || 0
+                    const derivativesValue = payload.find((p) => p.dataKey === 'derivatives')?.value || 0
+                    const totalRevenue = (spotValue as number) + (derivativesValue as number)
+                    const data = payload[0]?.payload
+
+                    return (
+                      <div className="bg-white border border-gray-200 rounded-lg shadow-xl p-3">
+                        <div className="font-medium mb-2 text-gray-900">
+                          {new Date(label).toLocaleDateString("tr-TR", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric"
+                          })}
+                        </div>
+                        <div className="space-y-1">
+                          {payload.map((entry, index) => (
+                            <div key={index} className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: entry.color }}
+                                />
+                                <span className="text-xs text-gray-600">{entry.name}</span>
+                              </div>
+                              <span className="text-xs font-medium text-gray-900">
+                                {typeof entry.value === 'number' ? formatVolume(entry.value) : entry.value}
+                              </span>
                             </div>
-                            <span className="text-xs font-medium text-gray-900">
-                              {typeof entry.value === 'number' ? formatVolume(entry.value) : entry.value}
-                            </span>
-                          </div>
-                        ))}
-                        <div className="pt-2 mt-2 border-t border-gray-200">
-                          <div className="flex items-center justify-between gap-4">
-                            <span className="text-xs font-semibold text-gray-700">Toplam Gelir</span>
-                            <span className="text-xs font-bold text-gray-900">
-                              ${formatVolume(totalRevenue)}
-                            </span>
+                          ))}
+                          <div className="pt-2 mt-2 border-t border-gray-200">
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-xs font-semibold text-gray-700">Toplam Gelir</span>
+                              <span className="text-xs font-bold text-gray-900">
+                                ${formatVolume(totalRevenue)}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )
-                }
-                return null
-              }}
-            />
-            <Area
-              dataKey="derivatives"
-              type="natural"
-              fill="url(#fillDerivatives)"
-              stroke="var(--color-derivatives)"
-              stackId="a"
-            />
-            <Area
-              dataKey="spot"
-              type="natural"
-              fill="url(#fillSpot)"
-              stroke="var(--color-spot)"
-              stackId="a"
-            />
-            <ChartLegend content={<ChartLegendContent />} />
-          </AreaChart>
-        </ChartContainer>
+                    )
+                  }
+                  return null
+                }}
+              />
+              <Area
+                dataKey="derivatives"
+                type="natural"
+                fill="url(#fillDerivatives)"
+                stroke="var(--color-derivatives)"
+                stackId="a"
+                isAnimationActive={false}
+              />
+              <Area
+                dataKey="spot"
+                type="natural"
+                fill="url(#fillSpot)"
+                stroke="var(--color-spot)"
+                stackId="a"
+                isAnimationActive={false}
+              />
+              <ChartLegend content={<ChartLegendContent />} />
+            </AreaChart>
+          </ChartContainer>
+        </ClientOnly>
       </CardContent>
     </Card>
   )

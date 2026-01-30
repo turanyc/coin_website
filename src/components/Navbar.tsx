@@ -138,7 +138,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      
+
       // Navbar içinde tıklanmışsa kapatma (ama butonlar hariç)
       if (navbarRef.current && navbarRef.current.contains(target)) {
         // Eğer bir buton veya link'e tıklandıysa ve navbar kapalıysa açma işlemini yapma
@@ -152,12 +152,12 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
         }
         return;
       }
-      
+
       // Dropdown menüler içinde tıklanmışsa kapatma
       if (target.closest('[data-dropdown]')) {
         return;
       }
-      
+
       // Navbar açıksa ve dışarıya tıklandıysa kapat
       if (navbarExpanded) {
         setNavbarExpanded(false);
@@ -258,9 +258,9 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
         <div className="flex items-center justify-between h-full px-6">
           {/* Sol taraf - Logo */}
           <Link href="/" className="h-10 flex items-center">
-            <Image 
+            <Image
               src={logoImage}
-              alt="Dijital Market Logo" 
+              alt="Dijital Market Logo"
               height={40}
               width={180}
               className="h-10 w-auto object-contain"
@@ -271,8 +271,8 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
           {/* Sağ taraf - Portföy, İzleme Listesi, Arama ve Profil */}
           <div className="flex items-center gap-4">
             {/* Portfolio */}
-            <Link 
-              href="/portfolio-landing" 
+            <Link
+              href="/portfolio-landing"
               className="hidden lg:flex items-center gap-2 px-3 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-[#2563EB] hover:text-white"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -282,7 +282,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
             </Link>
 
             {/* İzleme Listesi */}
-            <div 
+            <div
               className="hidden lg:block relative"
               onMouseEnter={() => {
                 if (watchlistPopupTimeout) {
@@ -298,7 +298,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
                 setWatchlistPopupTimeout(timeout);
               }}
             >
-              <Link 
+              <Link
                 href="/watchlist-landing"
                 className="flex items-center gap-2 px-3 py-2 text-gray-700 font-medium transition-all duration-200 rounded-lg hover:bg-[#2563EB] hover:text-white"
               >
@@ -308,7 +308,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
 
               {/* Watchlist Popup */}
               {showWatchlistPopup && (
-                <div 
+                <div
                   className="absolute top-full left-0 w-80 z-50 mt-2"
                   onMouseEnter={() => {
                     if (watchlistPopupTimeout) {
@@ -340,11 +340,10 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
                       <div className="flex gap-1 mb-4 border-b border-gray-200">
                         <button
                           onClick={() => setWatchlistTab('coins')}
-                          className={`flex-1 pb-2 text-center text-sm font-medium transition-colors relative ${
-                            watchlistTab === 'coins'
+                          className={`flex-1 pb-2 text-center text-sm font-medium transition-colors relative ${watchlistTab === 'coins'
                               ? 'text-[#2563EB]'
                               : 'text-gray-500 hover:text-gray-700'
-                          }`}
+                            }`}
                         >
                           Kripto Paralar
                           {watchlistTab === 'coins' && (
@@ -353,11 +352,10 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
                         </button>
                         <button
                           onClick={() => setWatchlistTab('dexscan')}
-                          className={`flex-1 pb-2 text-center text-sm font-medium transition-colors relative ${
-                            watchlistTab === 'dexscan'
+                          className={`flex-1 pb-2 text-center text-sm font-medium transition-colors relative ${watchlistTab === 'dexscan'
                               ? 'text-[#2563EB]'
                               : 'text-gray-500 hover:text-gray-700'
-                          }`}
+                            }`}
                         >
                           DexScan
                           {watchlistTab === 'dexscan' && (
@@ -504,7 +502,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
       </div>
 
       {/* Sağ Taraf Navbar - Vertical (Tıklamaya dayalı) */}
-      <nav 
+      <nav
         ref={navbarRef}
         onClick={(e) => {
           // Sadece navbar'ın kendisine tıklandığında (buton/link değilse) aç
@@ -513,12 +511,12 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
             handleNavbarToggle();
           }
         }}
-        className={`fixed top-16 right-0 h-[calc(100vh-4rem)] bg-white border-l border-gray-200 z-40 transition-all duration-300 overflow-visible ${navbarExpanded ? 'w-64' : 'w-16'} ${!navbarExpanded ? 'cursor-pointer' : ''}`}
+        className={`fixed top-16 right-0 h-[calc(100vh-4rem)] bg-white border-l border-gray-200 z-40 overflow-visible ${navbarExpanded ? 'w-64' : 'w-16'} ${!navbarExpanded ? 'cursor-pointer' : ''}`}
       >
         <div className="flex flex-col gap-1 h-full py-4">
           {/* Kripto Paralar */}
-          <div 
-            className="relative" 
+          <div
+            className="relative"
             data-dropdown
           >
             <button
@@ -545,57 +543,57 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
               )}
             </button>
             {openDropdown === 'crypto' && navbarExpanded && (
-              <div 
-                className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50" 
+              <div
+                className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
                 data-dropdown="crypto"
               >
-                  <Link href="/currencies/ranking" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <TrendingUp className="w-4 h-4" />
-                    <span>Piyasa Değerine Göre</span>
-                  </Link>
-                  <Link href="/currencies/recently-added" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Sparkles className="w-4 h-4" />
-                    <span>En Son Eklenenler</span>
-                  </Link>
-                  <Link href="/categories" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Layers className="w-4 h-4" />
-                    <span>Kategoriler</span>
-                  </Link>
-                  <Link href="/spotlight" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Target className="w-4 h-4" />
-                    <span>Vurgular</span>
-                  </Link>
-                  <Link href="/gainers-losers" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <ArrowUpDown className="w-4 h-4" />
-                    <span>Kazandıran ve Kaybettirenler</span>
-                  </Link>
-                  <Link href="/global-charts" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Globe className="w-4 h-4" />
-                    <span>Küresel Grafikler</span>
-                  </Link>
-                  <Link href="/historical-snapshots" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Database className="w-4 h-4" />
-                    <span>Geçmiş Veriler</span>
-                  </Link>
-                  <div className="border-t border-gray-200 my-1"></div>
-                  <div className="px-4 py-1">
-                    <span className="text-xs text-gray-500 uppercase font-semibold">Zincir Verileri</span>
-                  </div>
-                  <Link href="/chains" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Database className="w-4 h-4" />
-                    <span>Zincirler</span>
-                  </Link>
-                  <Link href="/crypto-treasuries" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Wallet className="w-4 h-4" />
-                    <span>Kripto Para Hazineleri</span>
-                  </Link>
+                <Link href="/currencies/ranking" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <TrendingUp className="w-4 h-4" />
+                  <span>Piyasa Değerine Göre</span>
+                </Link>
+                <Link href="/currencies/recently-added" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Sparkles className="w-4 h-4" />
+                  <span>En Son Eklenenler</span>
+                </Link>
+                <Link href="/categories" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Layers className="w-4 h-4" />
+                  <span>Kategoriler</span>
+                </Link>
+                <Link href="/spotlight" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Target className="w-4 h-4" />
+                  <span>Vurgular</span>
+                </Link>
+                <Link href="/gainers-losers" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <ArrowUpDown className="w-4 h-4" />
+                  <span>Kazandıran ve Kaybettirenler</span>
+                </Link>
+                <Link href="/global-charts" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Globe className="w-4 h-4" />
+                  <span>Küresel Grafikler</span>
+                </Link>
+                <Link href="/historical-snapshots" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Database className="w-4 h-4" />
+                  <span>Geçmiş Veriler</span>
+                </Link>
+                <div className="border-t border-gray-200 my-1"></div>
+                <div className="px-4 py-1">
+                  <span className="text-xs text-gray-500 uppercase font-semibold">Zincir Verileri</span>
                 </div>
-              )}
-            </div>
+                <Link href="/chains" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Database className="w-4 h-4" />
+                  <span>Zincirler</span>
+                </Link>
+                <Link href="/crypto-treasuries" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Wallet className="w-4 h-4" />
+                  <span>Kripto Para Hazineleri</span>
+                </Link>
+              </div>
+            )}
+          </div>
 
           {/* Borsalar */}
-          <div 
-            className="relative" 
+          <div
+            className="relative"
             data-dropdown
           >
             <button
@@ -621,41 +619,41 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
               )}
             </button>
             {openDropdown === 'exchanges' && navbarExpanded && (
-              <div 
-                className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50" 
+              <div
+                className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
                 data-dropdown="exchanges"
               >
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Coins className="w-4 h-4" />
-                    <span>Kripto Paralar</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Building2 className="w-4 h-4" />
-                    <span>Merkezi Borsalar</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Database className="w-4 h-4" />
-                    <span>Merkezi Olmayan Borsalar</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <BarChart className="w-4 h-4" />
-                    <span>Türevler</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <ArrowUpDown className="w-4 h-4" />
-                    <span>Sürekli Dexler</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Target className="w-4 h-4" />
-                    <span>Tahmin Piyasaları</span>
-                  </Link>
-                </div>
-              )}
-            </div>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Coins className="w-4 h-4" />
+                  <span>Kripto Paralar</span>
+                </Link>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Building2 className="w-4 h-4" />
+                  <span>Merkezi Borsalar</span>
+                </Link>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Database className="w-4 h-4" />
+                  <span>Merkezi Olmayan Borsalar</span>
+                </Link>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <BarChart className="w-4 h-4" />
+                  <span>Türevler</span>
+                </Link>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <ArrowUpDown className="w-4 h-4" />
+                  <span>Sürekli Dexler</span>
+                </Link>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Target className="w-4 h-4" />
+                  <span>Tahmin Piyasaları</span>
+                </Link>
+              </div>
+            )}
+          </div>
 
           {/* Öğren */}
-          <div 
-            className="relative" 
+          <div
+            className="relative"
             data-dropdown
           >
             <button
@@ -681,49 +679,49 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
               )}
             </button>
             {openDropdown === 'learn' && navbarExpanded && (
-              <div 
-                className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50" 
+              <div
+                className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
                 data-dropdown="learn"
               >
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <BookOpen className="w-4 h-4" />
-                    <span>Kripto Öğren</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Search className="w-4 h-4" />
-                    <span>Araştırma</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Lightbulb className="w-4 h-4" />
-                    <span>İç Görüleri</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Newspaper className="w-4 h-4" />
-                    <span>Haberler</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <FileText className="w-4 h-4" />
-                    <span>Raporlar</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <GraduationCap className="w-4 h-4" />
-                    <span>Öğren ve Kazan</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Video className="w-4 h-4" />
-                    <span>Videolar</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Mail className="w-4 h-4" />
-                    <span>Bülten</span>
-                  </Link>
-                </div>
-              )}
-            </div>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <BookOpen className="w-4 h-4" />
+                  <span>Kripto Öğren</span>
+                </Link>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Search className="w-4 h-4" />
+                  <span>Araştırma</span>
+                </Link>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Lightbulb className="w-4 h-4" />
+                  <span>İç Görüleri</span>
+                </Link>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Newspaper className="w-4 h-4" />
+                  <span>Haberler</span>
+                </Link>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <FileText className="w-4 h-4" />
+                  <span>Raporlar</span>
+                </Link>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <GraduationCap className="w-4 h-4" />
+                  <span>Öğren ve Kazan</span>
+                </Link>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Video className="w-4 h-4" />
+                  <span>Videolar</span>
+                </Link>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Mail className="w-4 h-4" />
+                  <span>Bülten</span>
+                </Link>
+              </div>
+            )}
+          </div>
 
           {/* Ürünler */}
-          <div 
-            className="relative" 
+          <div
+            className="relative"
             data-dropdown
           >
             <button
@@ -749,41 +747,41 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
               )}
             </button>
             {openDropdown === 'products' && navbarExpanded && (
-              <div 
-                className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50" 
+              <div
+                className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
                 data-dropdown="products"
               >
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Wallet className="w-4 h-4" />
-                    <span>Kripto Portföy</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <BarChart3 className="w-4 h-4" />
-                    <span>Veriyor Uygulama</span>
-                  </Link>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Crown className="w-4 h-4" />
-                    <span>Premium</span>
-                  </Link>
-                  <div className="border-t border-gray-200 my-1"></div>
-                  <div className="px-4 py-1">
-                    <span className="text-xs text-gray-500 uppercase font-semibold">Reklam</span>
-                  </div>
-                  <div className="border-t border-gray-200 my-1"></div>
-                  <div className="px-4 py-1">
-                    <span className="text-xs text-gray-500 uppercase font-semibold">Geliştiriciler</span>
-                  </div>
-                  <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
-                    <Database className="w-4 h-4" />
-                    <span>Kayıtlı Vücut</span>
-                  </Link>
-                  <div className="border-t border-gray-200 my-1"></div>
-                  <div className="px-4 py-1">
-                    <span className="text-xs text-gray-500 uppercase font-semibold">Dijital Marketin Terminal</span>
-                  </div>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Wallet className="w-4 h-4" />
+                  <span>Kripto Portföy</span>
+                </Link>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Veriyor Uygulama</span>
+                </Link>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Crown className="w-4 h-4" />
+                  <span>Premium</span>
+                </Link>
+                <div className="border-t border-gray-200 my-1"></div>
+                <div className="px-4 py-1">
+                  <span className="text-xs text-gray-500 uppercase font-semibold">Reklam</span>
                 </div>
-              )}
-            </div>
+                <div className="border-t border-gray-200 my-1"></div>
+                <div className="px-4 py-1">
+                  <span className="text-xs text-gray-500 uppercase font-semibold">Geliştiriciler</span>
+                </div>
+                <Link href="#" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">
+                  <Database className="w-4 h-4" />
+                  <span>Kayıtlı Vücut</span>
+                </Link>
+                <div className="border-t border-gray-200 my-1"></div>
+                <div className="px-4 py-1">
+                  <span className="text-xs text-gray-500 uppercase font-semibold">Dijital Marketin Terminal</span>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Topluluk */}
           <Link
@@ -824,7 +822,7 @@ const Navbar: React.FC<NavbarProps> = ({ onNavbarToggle, fearGreedIndex = 50, fe
               <span className="text-sm font-medium whitespace-nowrap">Dijital Marketim AI</span>
             )}
           </Link>
-          
+
           {/* Navbar Kapatma Butonu - Sadece açıkken görünür */}
           {navbarExpanded && (
             <button

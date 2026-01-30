@@ -1,4 +1,6 @@
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
+import logoImage from '../img/cripto_logo.png';
 
 interface PriceData {
   timestamp: number;
@@ -12,11 +14,11 @@ interface PriceChartProps {
   timeRange: '24h' | '7d' | '30d' | '1y' | '3y' | '5y';
 }
 
-const PriceChart: React.FC<PriceChartProps> = ({ 
-  data, 
-  width = 1200, 
+const PriceChart: React.FC<PriceChartProps> = ({
+  data,
+  width = 1200,
   height = 400,
-  timeRange 
+  timeRange
 }) => {
   const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; price: number; timestamp: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -57,13 +59,13 @@ const PriceChart: React.FC<PriceChartProps> = ({
   const getXAxisLabels = () => {
     const labels: Array<{ timestamp: number; label: string }> = [];
     const labelCount = timeRange === '1y' ? 12 : timeRange === '30d' ? 6 : timeRange === '7d' ? 7 : 6;
-    
+
     for (let i = 0; i <= labelCount; i++) {
       const index = Math.floor((data.length - 1) * (i / labelCount));
       if (index >= 0 && index < data.length) {
         const timestamp = data[index].timestamp;
         const date = new Date(timestamp);
-        
+
         let label = '';
         if (timeRange === '1y') {
           // Yıl için: 2012, 2014, 2016, etc.
@@ -80,7 +82,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
           // 24h için: saat
           label = date.getHours().toString().padStart(2, '0') + ':00';
         }
-        
+
         labels.push({ timestamp, label });
       }
     }
@@ -114,7 +116,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
   // Grafik çizgisi için path oluştur
   const createPath = () => {
     if (data.length === 0) return '';
-    
+
     let path = `M ${xScale(data[0].timestamp)},${yScale(data[0].price)}`;
     for (let i = 1; i < data.length; i++) {
       path += ` L ${xScale(data[i].timestamp)},${yScale(data[i].price)}`;
@@ -129,23 +131,23 @@ const PriceChart: React.FC<PriceChartProps> = ({
   // Mouse move handler
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!svgRef.current) return;
-    
+
     const rect = svgRef.current.getBoundingClientRect();
     const mouseX = e.clientX - rect.left - margin.left;
     const mouseY = e.clientY - rect.top - margin.top;
-    
+
     // Mouse grafik alanı içinde mi kontrol et
     if (mouseX < 0 || mouseX > chartWidth || mouseY < 0 || mouseY > chartHeight) {
       setHoveredPoint(null);
       return;
     }
-    
+
     // Mouse pozisyonuna en yakın veri noktasını bul
     const mouseTimestamp = minTime + (mouseX / chartWidth) * (maxTime - minTime);
-    
+
     let closestIndex = 0;
     let minDistance = Math.abs(data[0].timestamp - mouseTimestamp);
-    
+
     for (let i = 1; i < data.length; i++) {
       const distance = Math.abs(data[i].timestamp - mouseTimestamp);
       if (distance < minDistance) {
@@ -153,11 +155,11 @@ const PriceChart: React.FC<PriceChartProps> = ({
         closestIndex = i;
       }
     }
-    
+
     const closestPoint = data[closestIndex];
     const x = margin.left + xScale(closestPoint.timestamp);
     const y = margin.top + yScale(closestPoint.price);
-    
+
     setHoveredPoint({
       x,
       y,
@@ -198,14 +200,14 @@ const PriceChart: React.FC<PriceChartProps> = ({
 
   // SVG için ekstra yükseklik (X ekseni etiketleri için)
   const svgHeight = height + 30;
-  
+
   return (
     <div className="bg-white rounded-xl p-4 w-full overflow-x-auto relative">
-      <svg 
+      <svg
         ref={svgRef}
-        width={width} 
-        height={svgHeight} 
-        className="overflow-visible" 
+        width={width}
+        height={svgHeight}
+        className="overflow-visible"
         style={{ maxWidth: '100%', minHeight: `${svgHeight}px` }}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -213,7 +215,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
         {/* Arka plan grid */}
         <defs>
           <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-            <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#f3f4f6" strokeWidth="0.5"/>
+            <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#f3f4f6" strokeWidth="0.5" />
           </pattern>
         </defs>
         <rect
@@ -269,7 +271,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
           fill="transparent"
           style={{ cursor: 'crosshair' }}
         />
-        
+
         {/* Y ekseni çizgisi */}
         <line
           x1={margin.left}
@@ -355,7 +357,7 @@ const PriceChart: React.FC<PriceChartProps> = ({
             <stop offset="100%" stopColor={lineColor} stopOpacity="0.05" />
           </linearGradient>
         </defs>
-        
+
         {/* Grafik alanı dolgusu */}
         <g transform={`translate(${margin.left}, ${margin.top})`}>
           <path
@@ -448,6 +450,17 @@ const PriceChart: React.FC<PriceChartProps> = ({
           <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 border-r border-b border-gray-700 rotate-45"></div>
         </div>
       )}
+
+      {/* Logo Watermark */}
+      <div className="absolute bottom-16 right-8 pointer-events-none opacity-40 z-0">
+        <Image
+          src={logoImage}
+          alt="Dijital Market Logo"
+          width={120}
+          height={30}
+          className="h-8 w-auto object-contain"
+        />
+      </div>
     </div>
   );
 };

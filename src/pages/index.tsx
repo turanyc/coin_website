@@ -19,6 +19,8 @@ interface MarketStats {
   gasPrice: number;
 }
 
+import { getMockFearGreed, getMockGlobalStats, getMockGainersLosers } from '@/lib/mockData';
+
 const HomePage: React.FC = () => {
   const [marketStats, setMarketStats] = useState<MarketStats>({
     totalCoins: 0,
@@ -40,13 +42,10 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     const fetchFearGreed = async () => {
       try {
-        const response = await fetch('/api/fear-greed');
-        const data = await response.json();
-
-        if (data.value !== undefined) {
-          setFearGreedIndex(data.value);
-          setFearGreedClassification(data.classification || 'Neutral');
-        }
+        // MOCK DATA
+        const data = getMockFearGreed();
+        setFearGreedIndex(data.value);
+        setFearGreedClassification(data.classification);
       } catch (error) {
         console.error('Fear & Greed veri çekme hatası:', error);
         setFearGreedIndex(50);
@@ -55,69 +54,63 @@ const HomePage: React.FC = () => {
     };
 
     fetchFearGreed();
-    const interval = setInterval(fetchFearGreed, 5 * 60 * 1000); // Her 5 dakikada bir güncelle
-
-    return () => clearInterval(interval);
+    // const interval = setInterval(fetchFearGreed, 5 * 60 * 1000); 
+    // return () => clearInterval(interval);
   }, []);
 
   // Fetch market stats
   useEffect(() => {
     const fetchGlobalStats = async () => {
       try {
-        const response = await fetch('/api/global');
-        if (response.ok) {
-          const data = await response.json();
-          setMarketStats({
-            totalCoins: data.totalCoins || 0,
-            totalExchanges: data.totalExchanges || 0,
-            marketCap: data.marketCap || 0,
-            marketCapChange24h: data.marketCapChange24h || 0,
-            volume24h: data.volume24h || 0,
-            btcDominance: data.btcDominance || 0,
-            ethDominance: data.ethDominance || 0,
-            gasPrice: 0.518,
-          });
-        }
+        // MOCK DATA
+        const data = getMockGlobalStats();
+        setMarketStats({
+          totalCoins: data.totalCoins,
+          totalExchanges: data.totalExchanges,
+          marketCap: data.marketCap,
+          marketCapChange24h: data.marketCapChange24h,
+          volume24h: data.volume24h,
+          btcDominance: data.btcDominance,
+          ethDominance: data.ethDominance,
+          gasPrice: data.gasPrice,
+        });
       } catch (error) {
         console.error('Global stats error:', error);
       }
     };
 
     fetchGlobalStats();
-    const interval = setInterval(fetchGlobalStats, 60000); // Update every minute
-
-    return () => clearInterval(interval);
+    // const interval = setInterval(fetchGlobalStats, 60000); 
+    // return () => clearInterval(interval);
   }, []);
 
   // Fetch gainers and losers
   useEffect(() => {
     const fetchGainersLosers = async () => {
       try {
-        const response = await fetch('/api/gainers-losers?timeframe=24h&limit=10');
-        if (response.ok) {
-          const data = await response.json();
-          setTodayGainers(data.gainers || []);
-          setTodayLosers(data.losers || []);
-        }
+        // MOCK DATA
+        const data = getMockGainersLosers();
+        setTodayGainers(data.gainers);
+        setTodayLosers(data.losers);
       } catch (error) {
         console.error('Error fetching gainers/losers:', error);
       }
     };
     fetchGainersLosers();
-    const interval = setInterval(fetchGainersLosers, 60000); // Update every minute
-    return () => clearInterval(interval);
+    // const interval = setInterval(fetchGainersLosers, 60000); 
+    // return () => clearInterval(interval);
   }, []);
 
 
   return (
     <>
-      <Navbar 
-        marketStats={marketStats} 
+      <Navbar
+        marketStats={marketStats}
         onNavbarToggle={setNavbarExpanded}
         fearGreedIndex={fearGreedIndex}
         fearGreedClassification={fearGreedClassification}
       />
-      
+
       <Head>
         <title>Dijital Marketim | Kripto Fiyatları</title>
       </Head>
@@ -129,33 +122,33 @@ const HomePage: React.FC = () => {
           <div className="px-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               {/* Dashboard Cards - İlk 3 blok */}
-              <DashboardCards 
-        marketStats={marketStats}
-        fearGreedIndex={fearGreedIndex}
-        fearGreedClassification={fearGreedClassification}
+              <DashboardCards
+                marketStats={marketStats}
+                fearGreedIndex={fearGreedIndex}
+                fearGreedClassification={fearGreedClassification}
               />
-              
+
               {/* Volume Chart - 4. blok olarak */}
               <VolumeChart />
-                          </div>
-                              </div>
-          
+            </div>
+          </div>
+
           {/* Crypto Market List */}
           <CryptoMarketList />
-          </div>
         </div>
+      </div>
 
-          {/* Footer Section */}
-          <footer className="bg-white border-t border-gray-200 px-4 py-12">
+      {/* Footer Section */}
+      <footer className="bg-white border-t border-gray-200 px-4 py-12">
         <div className="w-full">
           {/* Üst Kısım - Logo ve Açıklama */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
             {/* Sol Taraf - Logo ve Açıklama */}
             <div className="lg:col-span-2">
               <div className="flex items-center gap-2 mb-4">
-                <Image 
+                <Image
                   src={logoImage}
-                  alt="Dijital Market Logo" 
+                  alt="Dijital Market Logo"
                   height={64}
                   width={250}
                   className="h-16 w-auto object-contain"
@@ -321,8 +314,8 @@ const HomePage: React.FC = () => {
               </p>
             </div>
           </div>
-          </div>
-          </footer>
+        </div>
+      </footer>
 
       {/* Market Stats Bar */}
       <MarketStatsBar marketStats={marketStats} />

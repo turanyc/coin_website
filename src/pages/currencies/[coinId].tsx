@@ -3,7 +3,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
-import { TrendingUp, Footprints, Waves } from "lucide-react";
+import { TrendingUp, Footprints, Waves, TrendingDown, Info, CheckCircle2, Globe, Share2, Star, ExternalLink } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Rectangle, XAxis, Pie, PieChart, PolarAngleAxis, PolarGrid, Radar, RadarChart, LabelList, RadialBar, RadialBarChart, Cell } from "recharts";
 import Navbar from '../../components/Navbar';
 import MarketStatsBar from '../../components/MarketStatsBar';
@@ -23,6 +23,14 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
+import ClientOnly from '../../components/ClientOnly';
+import {
+  getMockCoinDetail,
+  getMockCoinDetailsData,
+  getMockChartData,
+  getMockMarkets,
+  getMockCommunityPosts
+} from '../../lib/mockData';
 
 interface CoinDetail {
   id: string;
@@ -248,19 +256,18 @@ const CoinDetailPage: React.FC = () => {
     const fetchCoinDetail = async () => {
       setLoading(true);
       setError(null);
-      try {
-        const response = await fetch(`/api/coins/${coinId}`);
-        if (!response.ok) {
-          throw new Error('Coin bulunamadı');
+      // MOCK DATA: Instead of fetch, use mock data
+      setTimeout(() => {
+        try {
+          const data = getMockCoinDetail(coinId);
+          setCoin(data);
+          setLoading(false);
+        } catch (err) {
+          console.error(err);
+          setLoading(false);
+          setError('Mock verisi yüklenemedi');
         }
-        const data = await response.json();
-        setCoin(data);
-      } catch (err) {
-        console.error('Coin detay hatası:', err);
-        setError(err instanceof Error ? err.message : 'Coin yüklenirken hata oluştu');
-      } finally {
-        setLoading(false);
-      }
+      }, 500);
     };
 
     fetchCoinDetail();
@@ -274,43 +281,11 @@ const CoinDetailPage: React.FC = () => {
       setChartLoading(true);
       try {
         const days = timeRangeMap[timeRange].days;
-        const response = await fetch(`/api/chart/${coinId}?days=${days}`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data: ChartData = await response.json();
-        
-        if (data.priceData && Array.isArray(data.priceData) && data.priceData.length > 0) {
-          setChartData(data);
-        } else if (data.prices && Array.isArray(data.prices) && data.prices.length > 0) {
-          // Eğer priceData yoksa ama prices varsa, priceData oluştur
-          // API'den gelen veri yapısına göre timestamp'leri tahmin et
-          const now = Date.now();
-          const interval = (days * 24 * 60 * 60 * 1000) / data.prices.length;
-          const priceData = data.prices.map((price, index) => ({
-            timestamp: now - (data.prices.length - index) * interval,
-            price: price
-          }));
-          setChartData({
-            ...data,
-            priceData: priceData
-          });
-        } else {
-          setChartData({ 
-            prices: [], 
-            priceData: [], 
-            error: data.error || 'Veri bulunamadı' 
-          });
-        }
+        // MOCK DATA: Use mock chart data
+        const data = getMockChartData(days);
+        setChartData(data);
       } catch (err) {
         console.error('Grafik verisi hatası:', err);
-        setChartData({ 
-          prices: [], 
-          priceData: [], 
-          error: err instanceof Error ? err.message : 'Grafik verisi yüklenemedi' 
-        });
       } finally {
         setChartLoading(false);
       }
@@ -329,21 +304,19 @@ const CoinDetailPage: React.FC = () => {
     const fetchCoinDetails = async () => {
       setDetailsLoading(true);
       try {
-        const response = await fetch(`/api/coins/${coinId}/details`);
-        const data: CoinDetailsData = await response.json();
-        if (!data.error) {
-          setCoinDetails(data);
-          
-          // 7 günlük aralığı hesapla
-          if (chartData.prices && chartData.prices.length > 0) {
-            const prices7d = chartData.prices;
-            const high7d = Math.max(...prices7d);
-            const low7d = Math.min(...prices7d);
-            setCoinDetails(prev => prev ? {
-              ...prev,
-              priceRange7d: { high: high7d, low: low7d }
-            } : null);
-          }
+        // MOCK DATA: Use mock coin details
+        const data = getMockCoinDetailsData(coinId);
+        setCoinDetails(data);
+
+        // 7 günlük aralığı hesapla
+        if (chartData.prices && chartData.prices.length > 0) {
+          const prices7d = chartData.prices;
+          const high7d = Math.max(...prices7d);
+          const low7d = Math.min(...prices7d);
+          setCoinDetails(prev => prev ? {
+            ...prev,
+            priceRange7d: { high: high7d, low: low7d }
+          } : null);
         }
       } catch (err) {
         console.error('Coin detayları hatası:', err);
@@ -359,170 +332,22 @@ const CoinDetailPage: React.FC = () => {
   useEffect(() => {
     if (!coinId || typeof coinId !== 'string') return;
 
-    let isMounted = true;
-    let timeoutId: NodeJS.Timeout | null = null;
-    const controller = new AbortController();
-    
     const fetchMarkets = async () => {
       setMarketsLoading(true);
-      timeoutId = setTimeout(() => controller.abort(), 15000);
-
       try {
-        const response = await fetch(
-          `https://api.coingecko.com/api/v3/coins/${coinId}/tickers?include_exchange_logo=true&page=1&order=volume_desc`,
-          {
-            signal: controller.signal,
-            headers: {
-              'Accept': 'application/json',
-            },
-          }
-        );
-
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-
-        if (!response.ok) {
-          console.error('Markets API response not OK:', response.status, response.statusText);
-          if (isMounted) {
-            setMarkets([]);
-            setMarketsLoading(false);
-          }
-          return;
-        }
-
-        let data;
-        try {
-          data = await response.json();
-        } catch (jsonError) {
-          console.error('Error parsing Markets API JSON:', jsonError);
-          if (isMounted) {
-            setMarkets([]);
-            setMarketsLoading(false);
-          }
-          return;
-        }
-
-        if (!isMounted) {
-          setMarketsLoading(false);
-          return;
-        }
-
-        if (!data || typeof data !== 'object') {
-          console.error('Markets API returned invalid data:', data);
-          if (isMounted) {
-            setMarkets([]);
-            setMarketsLoading(false);
-          }
-          return;
-        }
-
-        if (data.tickers && Array.isArray(data.tickers) && data.tickers.length > 0) {
-          try {
-            const processedMarkets = (data.tickers as TickerData[])
-              .filter((ticker) => {
-                if (!ticker || typeof ticker !== 'object') return false;
-                // Filter by market type
-                if (marketFilter === 'ALL') return true;
-                if (marketFilter === 'CEX') return ticker.market?.identifier === 'cex';
-                if (marketFilter === 'DEX') return ticker.market?.identifier === 'dex';
-                if (marketFilter === 'Spot') {
-                  return ticker.market?.has_trading_incentive === false && !ticker.is_anomaly;
-                }
-                if (marketFilter === 'Perpetual') {
-                  const target = ticker.target || '';
-                  return target.includes('PERP') || target.includes('PERPETUAL');
-                }
-                if (marketFilter === 'Futures') {
-                  const target = ticker.target || '';
-                  return target.includes('FUTURES') || target.includes('FUTURE');
-                }
-                return true;
-              })
-              .map((ticker) => {
-                const base = ticker.base || '';
-                const target = ticker.target || '';
-                const marketName = ticker.market?.name || 'Bilinmiyor';
-                const lastPrice = typeof ticker.last === 'number' ? ticker.last : 0;
-                const volume = typeof ticker.volume === 'number' ? ticker.volume : 0;
-                const trustScore = ticker.trust_score || 'red';
-                const marketIdentifier = ticker.market?.identifier || '';
-
-                return {
-                  exchange: marketName,
-                  pair: `${base}/${target}`,
-                  price: lastPrice,
-                  volume24h: volume,
-                  volumePercent: 0, // Will calculate after
-                  bidAskSpread: ticker.bid_ask_spread_percentage && typeof ticker.bid === 'number' && typeof ticker.ask === 'number' ? {
-                    bid: ticker.bid,
-                    ask: ticker.ask,
-                  } : undefined,
-                  liquidity: trustScore === 'green' ? 100 : trustScore === 'yellow' ? 50 : 10,
-                  logo: ticker.market?.logo || (marketIdentifier ? `https://assets.coingecko.com/markets/images/${marketIdentifier}/small.png` : ''),
-                  trustScore: trustScore,
-                  marketType: marketIdentifier,
-                };
-              })
-              .filter((m) => m.volume24h > 0) // Only include markets with volume
-              .sort((a, b) => b.volume24h - a.volume24h);
-
-            // Calculate volume percentages
-            const totalVolume = processedMarkets.reduce((sum, m) => sum + m.volume24h, 0);
-            const marketsWithPercent = processedMarkets.map((m) => ({
-              ...m,
-              volumePercent: totalVolume > 0 ? (m.volume24h / totalVolume) * 100 : 0,
-            }));
-
-            if (isMounted) {
-              setMarkets(marketsWithPercent);
-            }
-          } catch (processError) {
-            console.error('Error processing markets data:', processError);
-            if (isMounted) {
-              setMarkets([]);
-              setMarketsLoading(false);
-            }
-          }
-        } else {
-          // No tickers data or empty array
-          if (isMounted) {
-            setMarkets([]);
-            setMarketsLoading(false);
-          }
-        }
-      } catch (error: unknown) {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-        if (error instanceof Error) {
-          if (error.name === 'AbortError') {
-            console.warn('Markets fetch timeout');
-          } else {
-            console.error('Error fetching markets:', error.message, error);
-          }
-        } else {
-          console.error('Unknown error fetching markets:', error);
-        }
-        if (isMounted) {
-          setMarkets([]);
-          setMarketsLoading(false);
-        }
+        // MOCK DATA: Use mock markets
+        const data = getMockMarkets();
+        // @ts-ignore
+        setMarkets(data);
+      } catch (error) {
+        console.error('Error fetching markets:', error);
+        setMarkets([]);
+      } finally {
+        setMarketsLoading(false);
       }
     };
 
     fetchMarkets();
-
-    return () => {
-      isMounted = false;
-      controller.abort();
-      // Cleanup timeout if component unmounts
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
   }, [coinId, marketFilter]);
 
   // Community posts'ları çek
@@ -530,63 +355,14 @@ const CoinDetailPage: React.FC = () => {
     const fetchCommunityPosts = async () => {
       setPostsLoading(true);
       try {
-        const response = await fetch('/api/community/posts');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.posts && Array.isArray(data.posts)) {
-            let filteredPosts = data.posts;
-            
-            // Eğer coin bilgisi varsa, o coin ile ilgili post'ları filtrele
-            if (coin && coin.symbol && coin.name) {
-              const coinSymbol = coin.symbol.toUpperCase();
-              const coinName = coin.name.toUpperCase();
-              const coinIdUpper = coin.id?.toUpperCase() || '';
-              
-              filteredPosts = data.posts.filter((post: { content_text?: string }) => {
-                const content = post.content_text?.toUpperCase() || '';
-                return content.includes(coinSymbol) || 
-                       content.includes(coinName) ||
-                       content.includes(coinIdUpper) ||
-                       content.includes(coin.symbol || '') ||
-                       content.includes(coin.name || '');
-              });
-            }
-            
-            // Eğer filtrelenmiş post yoksa, tüm post'ları göster (en azından bir şey gösterelim)
-            if (filteredPosts.length === 0 && data.posts.length > 0) {
-              filteredPosts = data.posts.slice(0, 10); // En son 10 post'u göster
-            }
-            
-            // Sort by feed tab
-            const sortedPosts = postFeedTab === 'Top' 
-              ? [...filteredPosts].sort((a: { like_count?: number; comment_count?: number }, b: { like_count?: number; comment_count?: number }) => 
-                  (b.like_count || 0) + (b.comment_count || 0) - (a.like_count || 0) - (a.comment_count || 0)
-                )
-              : [...filteredPosts].sort((a: { created_at: string }, b: { created_at: string }) => 
-                  new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-                );
-            
-            setCommunityPosts(sortedPosts.slice(0, 10));
-            
-            // Sentiment değerlerini hesapla (filtrelenmiş post'lardan)
-            const totalBullish = filteredPosts.reduce((sum: number, post: { bullish_count?: number }) => sum + (post.bullish_count || 0), 0);
-            const totalBearish = filteredPosts.reduce((sum: number, post: { bearish_count?: number }) => sum + (post.bearish_count || 0), 0);
-            const totalVotes = totalBullish + totalBearish;
-            
-            if (totalVotes > 0) {
-              const bullishPercent = Math.round((totalBullish / totalVotes) * 100);
-              const bearishPercent = Math.round((totalBearish / totalVotes) * 100);
-              setSentimentBullish(bullishPercent);
-              setSentimentBearish(bearishPercent);
-              setSentimentVotes(totalVotes);
-            } else {
-              // Eğer hiç oy yoksa varsayılan değerler
-              setSentimentBullish(50);
-              setSentimentBearish(50);
-              setSentimentVotes(0);
-            }
-          }
-        }
+        // MOCK DATA: Use mock posts
+        const posts = getMockCommunityPosts();
+        setCommunityPosts(posts);
+
+        // Mock sentiment
+        setSentimentBullish(85);
+        setSentimentBearish(15);
+        setSentimentVotes(1250);
       } catch (error) {
         console.error('Error fetching community posts:', error);
         setCommunityPosts([]);
@@ -595,8 +371,8 @@ const CoinDetailPage: React.FC = () => {
       }
     };
 
-    // Coin yüklenmesini beklemeden post'ları çek
     fetchCommunityPosts();
+
   }, [coin, postFeedTab]);
 
   // Global market stats'ı çek
@@ -800,7 +576,7 @@ const CoinDetailPage: React.FC = () => {
     if (diffMins < 60) return `${diffMins}m`;
     if (diffHours < 24) return `${diffHours}h`;
     if (diffDays < 7) return `${diffDays}d`;
-    
+
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return `${months[date.getMonth()]} ${date.getDate()}`;
   };
@@ -841,24 +617,24 @@ const CoinDetailPage: React.FC = () => {
         setNewPostText('');
         setToast({ message: 'Post başarıyla paylaşıldı!', visible: true });
         setTimeout(() => setToast({ message: '', visible: false }), 3000);
-        
+
         // Refresh posts
         const postsResponse = await fetch('/api/community/posts');
         if (postsResponse.ok) {
           const data = await postsResponse.json();
           if (data.posts && Array.isArray(data.posts)) {
             const coinSymbol = coin?.symbol.toUpperCase() || '';
-            const filteredPosts = data.posts.filter((post: { content_text?: string }) => 
-              post.content_text?.toUpperCase().includes(coinSymbol) || 
+            const filteredPosts = data.posts.filter((post: { content_text?: string }) =>
+              post.content_text?.toUpperCase().includes(coinSymbol) ||
               post.content_text?.toUpperCase().includes(coin?.name.toUpperCase() || '')
             );
-            const sortedPosts = postFeedTab === 'Top' 
-              ? [...filteredPosts].sort((a: { like_count?: number; comment_count?: number }, b: { like_count?: number; comment_count?: number }) => 
-                  (b.like_count || 0) + (b.comment_count || 0) - (a.like_count || 0) - (a.comment_count || 0)
-                )
-              : [...filteredPosts].sort((a: { created_at: string }, b: { created_at: string }) => 
-                  new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-                );
+            const sortedPosts = postFeedTab === 'Top'
+              ? [...filteredPosts].sort((a: { like_count?: number; comment_count?: number }, b: { like_count?: number; comment_count?: number }) =>
+                (b.like_count || 0) + (b.comment_count || 0) - (a.like_count || 0) - (a.comment_count || 0)
+              )
+              : [...filteredPosts].sort((a: { created_at: string }, b: { created_at: string }) =>
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+              );
             setCommunityPosts(sortedPosts.slice(0, 10));
           }
         }
@@ -941,13 +717,13 @@ const CoinDetailPage: React.FC = () => {
     }
     // Fallback: coin'in 24h değişimini kullan
     if (coin) {
-      const multiplier = 
-        timeRange === '24h' ? 1 : 
-        timeRange === '7d' ? 7 : 
-        timeRange === '30d' ? 30 : 
-        timeRange === '1y' ? 365 : 
-        timeRange === '3y' ? 1095 : 
-        timeRange === '5y' ? 1825 : 365;
+      const multiplier =
+        timeRange === '24h' ? 1 :
+          timeRange === '7d' ? 7 :
+            timeRange === '30d' ? 30 :
+              timeRange === '1y' ? 365 :
+                timeRange === '3y' ? 1095 :
+                  timeRange === '5y' ? 1825 : 365;
       return (coin.price_change_percentage_24h || 0) * (multiplier / 24);
     }
     return 0;
@@ -1079,15 +855,15 @@ const CoinDetailPage: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen bg-white pb-14 pt-16 transition-all duration-300 ${navbarExpanded ? 'pr-64' : 'pr-16'}`}>
+    <div className={`min-h-screen bg-white pb-14 pt-16 ${navbarExpanded ? 'pr-64' : 'pr-16'}`}>
       <Head>
         <title>{coin.name} ({coin.symbol.toUpperCase()}) - Dijital Marketim</title>
         <meta name="description" content={`${coin.name} fiyat, grafik ve analiz bilgileri`} />
       </Head>
 
       {/* Navbar */}
-      <Navbar 
-        marketStats={marketStats} 
+      <Navbar
+        marketStats={marketStats}
         onNavbarToggle={setNavbarExpanded}
       />
 
@@ -1104,172 +880,127 @@ const CoinDetailPage: React.FC = () => {
 
         {/* 3 Column Layout - x-3x-x (1-3-1) */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 h-[calc(100vh-200px)]">
-          {/* Sol Blok - Coin Info */}
+          {/* Sol Blok - Coin Info (Redesigned) */}
           <div className="lg:col-span-1 bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col">
-            <div className="overflow-y-auto flex-1 p-6 space-y-6">
-              {/* Coin Header */}
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  {coin.image && (
-                    <img
-                      src={coin.image}
-                      alt={coin.name}
-                      className="w-12 h-12 rounded-full"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  )}
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h1 className="text-4xl font-bold text-gray-900">{coin.name}</h1>
-                      <span className="text-gray-600 text-lg">{coin.symbol.toUpperCase()}</span>
-                      {coinDetails?.marketData.marketCapRank && (
-                        <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-semibold">
-                          #{coinDetails.marketData.marketCapRank}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+            <div className="overflow-y-auto flex-1 p-6">
+
+              {/* Header */}
+              <div className="flex items-center gap-4 mb-8">
+                {coin.image && (
+                  <img
+                    src={coin.image}
+                    alt={coin.name}
+                    className="w-14 h-14 rounded-full shadow-sm"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                )}
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 leading-tight">{coin.name}</h1>
+                  <span className="text-lg font-medium text-gray-400">{coin.symbol.toUpperCase()}</span>
                 </div>
               </div>
 
-              {/* Price and Change */}
-              <div>
-                <div className="text-3xl font-bold text-gray-900 mb-2">
-                  {formatCurrency(coin.current_price)}
+              {/* Price Section */}
+              <div className="mb-10">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-bold text-gray-900 tracking-tight">
+                    {formatCurrency(coin.current_price)}
+                  </span>
                 </div>
-                <div className={`text-lg font-semibold ${coin.price_change_percentage_24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {coin.price_change_percentage_24h >= 0 ? '▲' : '▼'} {Math.abs(coin.price_change_percentage_24h).toFixed(2)}% (24s)
+                <div className={`flex items-center gap-2 mt-2 font-medium text-lg ${coin.price_change_percentage_24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {coin.price_change_percentage_24h >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+                  <span>{Math.abs(coin.price_change_percentage_24h).toFixed(2)}% (24s)</span>
                 </div>
               </div>
 
-              {/* Key Metrics Grid */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                  <div className="flex items-center gap-1 mb-1">
-                    <span className="text-xs text-gray-600">Vol/Mkt Cap (24h)</span>
-                    <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
+              {/* Stats Grid - Cleaner Layout */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-8 mb-10">
+                {/* Item 1 */}
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-gray-400 mb-2 cursor-help" title="Hacim / Piyasa Değeri">
+                    Vol/Mkt Cap (24h)
+                    <Info className="w-3.5 h-3.5 text-gray-300" />
                   </div>
-                  <div className="text-sm font-semibold text-gray-900">
+                  <div className="text-base font-bold text-gray-900">
                     {coinDetails ? ((coinDetails.marketData.volume24h.usd / coinDetails.marketData.marketCap.usd) * 100).toFixed(3) : '0.876'}%
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                  <div className="flex items-center gap-1 mb-1">
-                    <span className="text-xs text-gray-600">Toplam arz</span>
-                    <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
+                {/* Item 2 */}
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-gray-400 mb-2">
+                    Toplam arz
+                    <Info className="w-3.5 h-3.5 text-gray-300" />
                   </div>
-                  <div className="text-sm font-semibold text-gray-900">
+                  <div className="text-base font-bold text-gray-900 truncate">
                     {coinDetails ? formatTrillion(coinDetails.supply.total) : '19.96M'} {coin.symbol.toUpperCase()}
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                  <div className="flex items-center gap-1 mb-1">
-                    <span className="text-xs text-gray-600">Max. supply</span>
-                    <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
+                {/* Item 3 */}
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-gray-400 mb-2">
+                    Max. supply
+                    <Info className="w-3.5 h-3.5 text-gray-300" />
                   </div>
-                  <div className="text-sm font-semibold text-gray-900">
-                    {coinDetails && coinDetails.supply.max ? formatTrillion(coinDetails.supply.max) : '21M'} {coin.symbol.toUpperCase()}
+                  <div className="text-base font-bold text-gray-900">
+                    {coinDetails && coinDetails.supply.max ? formatTrillion(coinDetails.supply.max) : '∞'}
+                    {coinDetails && coinDetails.supply.max ? ' ' + coin.symbol.toUpperCase() : ''}
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                  <div className="flex items-center gap-1 mb-1">
-                    <span className="text-xs text-gray-600">Dolaşımdaki arz</span>
-                    <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
+                {/* Item 4 */}
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-gray-400 mb-2">
+                    Dolaşımdaki arz
+                    <Info className="w-3.5 h-3.5 text-gray-300" />
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="text-sm font-semibold text-gray-900">
+                    <div className="text-base font-bold text-gray-900 truncate">
                       {coinDetails ? formatTrillion(coinDetails.supply.circulating) : '19.96M'} {coin.symbol.toUpperCase()}
                     </div>
-                    <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
+                    <CheckCircle2 className="w-4 h-4 text-blue-500 flex-shrink-0" />
                   </div>
                 </div>
               </div>
 
               {/* Profile Score */}
-              <div>
-                <div className="flex items-center gap-1 mb-2">
-                  <span className="text-sm text-gray-600">Profile score</span>
-                  <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                  </svg>
+              <div className="mb-10">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5 text-sm text-gray-600 font-medium">
+                    Profile score
+                    <Info className="w-3.5 h-3.5 text-gray-300" />
+                  </div>
                 </div>
-                <div className="relative w-full bg-gray-200 rounded-full h-2 mb-3">
-                  <div className="bg-green-500 h-2 rounded-full" style={{ width: '100%' }}></div>
+                <div className="w-full bg-gray-100 rounded-full h-2 mb-2 overflow-hidden">
+                  <div className="bg-[#00FC65] h-full rounded-full shadow-[0_0_8px_rgba(0,252,101,0.5)]" style={{ width: '100%' }}></div>
                 </div>
-                <div className="text-sm font-semibold text-gray-900 mb-3">100%</div>
+                <div className="text-sm font-bold text-gray-900">100%</div>
               </div>
 
-              {/* External Links */}
-              <div className="space-y-4">
+              {/* Links List */}
+              <div className="space-y-6 mb-10">
                 {/* Website */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Website</span>
-                  <div className="flex items-center gap-2">
-                    {coinDetails?.links.homepage && (
-                      <a
-                        href={coinDetails.links.homepage}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                        </svg>
-                        Web Sitesi
-                      </a>
-                    )}
-                    {coinDetails?.links.whitepaper && (
-                      <button className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Whitepaper
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
+                <div className="flex items-center justify-between group">
+                  <span className="text-sm font-medium text-gray-500">Website</span>
+                  {coinDetails?.links.homepage && (
+                    <a href={coinDetails.links.homepage} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-semibold text-gray-900 transition-all">
+                      <Globe className="w-3.5 h-3.5 text-gray-500" />
+                      Web Sitesi
+                      <ExternalLink className="w-3 h-3 text-gray-400" />
+                    </a>
+                  )}
                 </div>
 
                 {/* Socials */}
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Sosyal medya</span>
+                  <span className="text-sm font-medium text-gray-500">Sosyal medya</span>
                   <div className="flex items-center gap-2">
                     {coinDetails?.links.subreddit && (
-                      <a
-                        href={`https://reddit.com${coinDetails.links.subreddit}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-8 h-8 flex items-center justify-center"
-                      >
-                        <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z" />
-                        </svg>
+                      <a href={`https://reddit.com${coinDetails.links.subreddit}`} target="_blank" className="p-2 bg-gray-50 hover:bg-gray-100 rounded-lg text-gray-600 transition-all shadow-sm border border-gray-100">
+                        <Share2 className="w-4 h-4" />
                       </a>
                     )}
                     {coinDetails?.links.github && (
-                      <a
-                        href={coinDetails.links.github}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-8 h-8 flex items-center justify-center"
-                      >
-                        <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-                        </svg>
+                      <a href={coinDetails.links.github} target="_blank" className="p-2 bg-gray-50 hover:bg-gray-100 rounded-lg text-gray-600 transition-all shadow-sm border border-gray-100">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" /></svg>
                       </a>
                     )}
                   </div>
@@ -1277,134 +1008,55 @@ const CoinDetailPage: React.FC = () => {
 
                 {/* Rating */}
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Değerlendirme</span>
+                  <span className="text-sm font-medium text-gray-500">Değerlendirme</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900">4.7</span>
-                    <div className="flex items-center gap-0.5">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <svg key={i} className={`w-4 h-4 ${i <= 4 ? 'text-yellow-400' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
+                    <span className="text-base font-bold text-gray-900">4.7</span>
+                    <div className="flex text-yellow-500">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <Star key={i} className={`w-4 h-4 ${i <= 4 ? 'fill-current' : 'text-gray-200 fill-transparent'}`} />
                       ))}
                     </div>
-                    <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
                   </div>
                 </div>
-
-                {/* Explorers */}
-                {coinDetails && coinDetails.links.blockchainExplorers && coinDetails.links.blockchainExplorers.length > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Keşifçiler</span>
-                    <button className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors">
-                      {coinDetails.links.blockchainExplorers[0]?.replace(/^https?:\/\//, '').replace(/\/$/, '').split('/')[0].substring(0, 15) || 'Keşifçi'}
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-
               </div>
 
-              {/* Converter */}
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">{coin.symbol.toUpperCase()} to USD converter</h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs text-gray-600 mb-1 block">{coin.symbol.toUpperCase()}</label>
+              {/* Converter - Simplified */}
+              <div className="mb-10 pt-8 border-t border-gray-100">
+                <h3 className="text-sm font-bold text-gray-900 mb-4">{coin.symbol.toUpperCase()} to USD</h3>
+                <div className="flex flex-col gap-4">
+                  <div className="bg-gray-50 p-4 rounded-xl border border-transparent focus-within:border-blue-500 focus-within:bg-white transition-all ring-0 focus-within:ring-2 focus-within:ring-blue-100">
+                    <label className="text-xs font-semibold text-gray-400 mb-1 block uppercase tracking-wider">{coin.symbol}</label>
                     <input
                       type="number"
                       value={converterAmount}
                       onChange={(e) => setConverterAmount(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full bg-transparent text-xl font-bold text-gray-900 outline-none placeholder-gray-300"
                       placeholder="1"
                     />
                   </div>
-                  <div>
-                    <label className="text-xs text-gray-600 mb-1 block">USD</label>
-                    <input
-                      type="text"
-                      value={coinDetails ? formatCurrency(parseFloat(converterAmount || '0') * coinDetails.prices.usd) : '0.00'}
-                      readOnly
-                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900"
-                    />
+                  <div className="bg-gray-50 p-4 rounded-xl">
+                    <label className="text-xs font-semibold text-gray-400 mb-1 block uppercase tracking-wider">USD</label>
+                    <div className="text-xl font-bold text-gray-900">
+                      {coinDetails ? formatCurrency(parseFloat(converterAmount || '0') * coinDetails.prices.usd) : '0.00'}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Price Performance */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900">Fiyat performansı</h3>
-                  <button className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors">
-                    24h
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                </div>
-                {coinDetails && (
-                  <>
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <div className="text-xs text-gray-600 mb-1">Düşük</div>
-                        <div className="text-sm font-semibold text-gray-900">{formatCurrency(coinDetails.priceRange24h.low.usd)}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xs text-gray-600 mb-1">Yüksek</div>
-                        <div className="text-sm font-semibold text-gray-900">{formatCurrency(coinDetails.priceRange24h.high.usd)}</div>
-                      </div>
-                    </div>
-                    <div className="relative w-full h-2 bg-gray-200 rounded-full mb-4">
-                      <div className="absolute left-0 top-0 h-2 bg-blue-500 rounded-full" style={{ width: '50%' }}></div>
-                      <div className="absolute left-1/2 top-0 w-1 h-2 bg-gray-900 rounded-full transform -translate-x-1/2"></div>
-                    </div>
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-gray-600">Tüm zamanların en yükseği</span>
-                          <span className="text-xs text-gray-600">{coinDetails.ath.date ? formatDate(coinDetails.ath.date) : 'Bilinmiyor'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold text-gray-900">{formatCurrency(coinDetails.ath.price.usd)}</span>
-                          <span className="text-xs text-red-600">
-                            {coinDetails.ath.price.usd > 0 ? (((coin.current_price - coinDetails.ath.price.usd) / coinDetails.ath.price.usd) * 100).toFixed(2) : '0.00'}%
-                          </span>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-gray-600">Tüm zamanların en düşüğü</span>
-                          <span className="text-xs text-gray-600">{coinDetails.atl.date ? formatDate(coinDetails.atl.date) : 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold text-gray-900">{formatCurrency(coinDetails.atl.price.usd)}</span>
-                          <span className="text-xs text-green-600">
-                            {coinDetails.atl.price.usd > 0 ? (((coin.current_price - coinDetails.atl.price.usd) / coinDetails.atl.price.usd) * 100).toFixed(2) : '0.00'}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <a href="#" className="text-xs text-blue-600 hover:text-blue-700 mt-2 inline-block">Geçmiş verileri gör</a>
-                  </>
-                )}
-              </div>
-
-              {/* Tags */}
+              {/* Tags - Simplified */}
               {coinDetails && coinDetails.categories.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Tags</h3>
+                <div className="pt-8 border-t border-gray-100">
+                  <h3 className="text-sm font-bold text-gray-900 mb-4">Etiketler</h3>
                   <div className="flex flex-wrap gap-2">
                     {coinDetails.categories.slice(0, 6).map((tag, index) => (
-                      <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg">
+                      <span key={index} className="px-3 py-1.5 bg-gray-50 text-gray-600 text-xs font-semibold rounded-lg hover:bg-gray-100 hover:text-gray-900 transition-colors cursor-default">
                         {tag}
                       </span>
                     ))}
                   </div>
                 </div>
               )}
+
             </div>
           </div>
 
@@ -1418,21 +1070,19 @@ const CoinDetailPage: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setChartTab('Price')}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                        chartTab === 'Price'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${chartTab === 'Price'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:text-gray-900'
+                        }`}
                     >
                       Fiyat
                     </button>
                     <button
                       onClick={() => setChartTab('Mkt Cap')}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                        chartTab === 'Mkt Cap'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${chartTab === 'Mkt Cap'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:text-gray-900'
+                        }`}
                     >
                       Mkt Cap
                     </button>
@@ -1441,11 +1091,10 @@ const CoinDetailPage: React.FC = () => {
                         const tradingViewUrl = `https://www.tradingview.com/chart/?symbol=BINANCE:${coin.symbol.toUpperCase()}USDT`;
                         window.open(tradingViewUrl, '_blank');
                       }}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors flex items-center gap-1 ${
-                        chartTab === 'TradingView'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors flex items-center gap-1 ${chartTab === 'TradingView'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:text-gray-900'
+                        }`}
                     >
                       TradingView
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1454,7 +1103,7 @@ const CoinDetailPage: React.FC = () => {
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button 
+                    <button
                       onClick={() => {
                         // Karşılaştırma sayfasına yönlendir veya modal aç
                         router.push(`/compare?coin1=${coin.id}`);
@@ -1485,11 +1134,10 @@ const CoinDetailPage: React.FC = () => {
                         <button
                           key={range}
                           onClick={() => setTimeRange(rangeMap[range])}
-                          className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                            isActive
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
+                          className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${isActive
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
                         >
                           {range}
                         </button>
@@ -1499,11 +1147,10 @@ const CoinDetailPage: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setIsLogScale(!isLogScale)}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                        isLogScale
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${isLogScale
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                     >
                       Log
                     </button>
@@ -1530,35 +1177,37 @@ const CoinDetailPage: React.FC = () => {
                     Grafik verisi yükleniyor...
                   </div>
                 ) : chartData.priceData && chartData.priceData.length > 0 ? (
-                  <div className="relative">
-                    {isFullscreen && (
-                      <div className="fixed inset-0 bg-white z-50 p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <h2 className="text-xl font-bold text-gray-900">{coin?.name} Fiyat Grafiği</h2>
-                          <button
-                            onClick={() => setIsFullscreen(false)}
-                            className="p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
-                          >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
+                  <ClientOnly fallback={<div className="flex items-center justify-center h-96 text-gray-400">Yükleniyor...</div>}>
+                    <div className="relative">
+                      {isFullscreen && (
+                        <div className="fixed inset-0 bg-white z-50 p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-xl font-bold text-gray-900">{coin?.name} Fiyat Grafiği</h2>
+                            <button
+                              onClick={() => setIsFullscreen(false)}
+                              className="p-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
+                            >
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                          <PriceChart
+                            data={chartData.priceData}
+                            width={typeof window !== 'undefined' ? window.innerWidth - 48 : 1200}
+                            height={typeof window !== 'undefined' ? window.innerHeight - 200 : 600}
+                            timeRange={timeRange}
+                          />
                         </div>
-                        <PriceChart
-                          data={chartData.priceData}
-                          width={typeof window !== 'undefined' ? window.innerWidth - 48 : 1200}
-                          height={typeof window !== 'undefined' ? window.innerHeight - 200 : 600}
-                          timeRange={timeRange}
-                        />
-                      </div>
-                    )}
-                    <PriceChart
-                      data={chartData.priceData}
-                      width={typeof window !== 'undefined' ? Math.min(window.innerWidth - 100, 1200) : 1200}
-                      height={500}
-                      timeRange={timeRange}
-                    />
-                  </div>
+                      )}
+                      <PriceChart
+                        data={chartData.priceData}
+                        width={typeof window !== 'undefined' ? Math.min(window.innerWidth - 100, 1200) : 1200}
+                        height={500}
+                        timeRange={timeRange}
+                      />
+                    </div>
+                  </ClientOnly>
                 ) : (
                   <div className="flex items-center justify-center h-96 text-gray-500 bg-gray-50 rounded-lg">
                     {chartData.error ? (
@@ -1581,7 +1230,7 @@ const CoinDetailPage: React.FC = () => {
                     <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
                       {coinDetails.description}
                     </p>
-                </div>
+                  </div>
                 </div>
               )}
 
@@ -1603,11 +1252,10 @@ const CoinDetailPage: React.FC = () => {
                     <button
                       key={filter}
                       onClick={() => setMarketFilter(filter)}
-                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                        marketFilter === filter
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${marketFilter === filter
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                     >
                       {filter}
                     </button>
@@ -1714,8 +1362,8 @@ const CoinDetailPage: React.FC = () => {
                   <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
                     <h4 className="text-sm font-semibold text-gray-900 mb-2">{coin.name} Tarihçesi</h4>
                     <p className="text-sm text-gray-700 leading-relaxed">
-                      {coinDetails.description.length > 800 
-                        ? `${coinDetails.description.substring(0, 800)}...` 
+                      {coinDetails.description.length > 800
+                        ? `${coinDetails.description.substring(0, 800)}...`
                         : coinDetails.description}
                     </p>
                   </div>
@@ -1727,99 +1375,98 @@ const CoinDetailPage: React.FC = () => {
                     <div className="text-sm text-gray-600">
                       {((marketPage - 1) * marketRowsPerPage) + 1} - {Math.min(marketPage * marketRowsPerPage, markets.length)} / {markets.length} gösteriliyor
                     </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setMarketPage(Math.max(1, marketPage - 1))}
-                      disabled={marketPage === 1}
-                      className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      &lt;
-                    </button>
-                    {(() => {
-                      const totalPages = Math.ceil(markets.length / marketRowsPerPage);
-                      const maxVisiblePages = 5;
-                      const pages: (number | string)[] = [];
-                      
-                      if (totalPages <= maxVisiblePages) {
-                        for (let i = 1; i <= totalPages; i++) {
-                          pages.push(i);
-                        }
-                      } else {
-                        if (marketPage <= 3) {
-                          for (let i = 1; i <= 4; i++) {
-                            pages.push(i);
-                          }
-                          pages.push('...');
-                          pages.push(totalPages);
-                        } else if (marketPage >= totalPages - 2) {
-                          pages.push(1);
-                          pages.push('...');
-                          for (let i = totalPages - 3; i <= totalPages; i++) {
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setMarketPage(Math.max(1, marketPage - 1))}
+                        disabled={marketPage === 1}
+                        className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        &lt;
+                      </button>
+                      {(() => {
+                        const totalPages = Math.ceil(markets.length / marketRowsPerPage);
+                        const maxVisiblePages = 5;
+                        const pages: (number | string)[] = [];
+
+                        if (totalPages <= maxVisiblePages) {
+                          for (let i = 1; i <= totalPages; i++) {
                             pages.push(i);
                           }
                         } else {
-                          pages.push(1);
-                          pages.push('...');
-                          for (let i = marketPage - 1; i <= marketPage + 1; i++) {
-                            pages.push(i);
+                          if (marketPage <= 3) {
+                            for (let i = 1; i <= 4; i++) {
+                              pages.push(i);
+                            }
+                            pages.push('...');
+                            pages.push(totalPages);
+                          } else if (marketPage >= totalPages - 2) {
+                            pages.push(1);
+                            pages.push('...');
+                            for (let i = totalPages - 3; i <= totalPages; i++) {
+                              pages.push(i);
+                            }
+                          } else {
+                            pages.push(1);
+                            pages.push('...');
+                            for (let i = marketPage - 1; i <= marketPage + 1; i++) {
+                              pages.push(i);
+                            }
+                            pages.push('...');
+                            pages.push(totalPages);
                           }
-                          pages.push('...');
-                          pages.push(totalPages);
                         }
-                      }
-                      
-                      return pages.map((page, idx) => {
-                        if (page === '...') {
-                          return <span key={`ellipsis-${idx}`} className="px-2 text-gray-600">...</span>;
-                        }
-                        return (
-                          <button
-                            key={page}
-                            onClick={() => setMarketPage(page as number)}
-                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                              marketPage === page
+
+                        return pages.map((page, idx) => {
+                          if (page === '...') {
+                            return <span key={`ellipsis-${idx}`} className="px-2 text-gray-600">...</span>;
+                          }
+                          return (
+                            <button
+                              key={page}
+                              onClick={() => setMarketPage(page as number)}
+                              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${marketPage === page
                                 ? 'bg-blue-600 text-white'
                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        );
-                      });
-                    })()}
-                    <button
-                      onClick={() => {
-                        const totalPages = Math.ceil(markets.length / marketRowsPerPage);
-                        setMarketPage(Math.min(totalPages, marketPage + 1));
-                      }}
-                      disabled={marketPage >= Math.ceil(markets.length / marketRowsPerPage)}
-                      className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      &gt;
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Satır göster</span>
-                    <select
-                      value={marketRowsPerPage}
-                      onChange={(e) => {
-                        setMarketRowsPerPage(Number(e.target.value));
-                        setMarketPage(1);
-                      }}
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value={10}>10</option>
-                      <option value={25}>25</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                  </div>
+                                }`}
+                            >
+                              {page}
+                            </button>
+                          );
+                        });
+                      })()}
+                      <button
+                        onClick={() => {
+                          const totalPages = Math.ceil(markets.length / marketRowsPerPage);
+                          setMarketPage(Math.min(totalPages, marketPage + 1));
+                        }}
+                        disabled={marketPage >= Math.ceil(markets.length / marketRowsPerPage)}
+                        className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        &gt;
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">Satır göster</span>
+                      <select
+                        value={marketRowsPerPage}
+                        onChange={(e) => {
+                          setMarketRowsPerPage(Number(e.target.value));
+                          setMarketPage(1);
+                        }}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
+                    </div>
                   </div>
                 )}
-                  </div>
-                </div>
-
               </div>
+            </div>
+
+          </div>
 
           {/* Sağ Blok - Community Sentiment */}
           <div className="lg:col-span-1 bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col">
@@ -1867,7 +1514,7 @@ const CoinDetailPage: React.FC = () => {
 
                 {/* Sentiment Buttons */}
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     onClick={async () => {
                       try {
                         const storedUser = localStorage.getItem('currentUser');
@@ -1876,18 +1523,18 @@ const CoinDetailPage: React.FC = () => {
                           setTimeout(() => setToast({ message: '', visible: false }), 3000);
                           return;
                         }
-                        
+
                         // Client-side olarak sentiment güncelle (gerçek uygulamada API'ye kaydedilebilir)
                         const currentBullishVotes = Math.round((sentimentBullish / 100) * sentimentVotes);
                         const newBullishVotes = currentBullishVotes + 1;
                         const newTotal = sentimentVotes + 1;
                         const newBullishPercent = Math.round((newBullishVotes / newTotal) * 100);
                         const newBearishPercent = 100 - newBullishPercent;
-                        
+
                         setSentimentBullish(newBullishPercent);
                         setSentimentBearish(newBearishPercent);
                         setSentimentVotes(newTotal);
-                        
+
                         setToast({ message: 'Yükseliş oyu eklendi!', visible: true });
                         setTimeout(() => setToast({ message: '', visible: false }), 3000);
                       } catch (error) {
@@ -1903,7 +1550,7 @@ const CoinDetailPage: React.FC = () => {
                     </svg>
                     Yükseliş
                   </button>
-                  <button 
+                  <button
                     onClick={async () => {
                       try {
                         const storedUser = localStorage.getItem('currentUser');
@@ -1912,18 +1559,18 @@ const CoinDetailPage: React.FC = () => {
                           setTimeout(() => setToast({ message: '', visible: false }), 3000);
                           return;
                         }
-                        
+
                         // Client-side olarak sentiment güncelle (gerçek uygulamada API'ye kaydedilebilir)
                         const currentBearishVotes = Math.round((sentimentBearish / 100) * sentimentVotes);
                         const newBearishVotes = currentBearishVotes + 1;
                         const newTotal = sentimentVotes + 1;
                         const newBearishPercent = Math.round((newBearishVotes / newTotal) * 100);
                         const newBullishPercent = 100 - newBearishPercent;
-                        
+
                         setSentimentBullish(newBullishPercent);
                         setSentimentBearish(newBearishPercent);
                         setSentimentVotes(newTotal);
-                        
+
                         setToast({ message: 'Düşüş oyu eklendi!', visible: true });
                         setTimeout(() => setToast({ message: '', visible: false }), 3000);
                       } catch (error) {
@@ -1946,21 +1593,19 @@ const CoinDetailPage: React.FC = () => {
               <div className="flex items-center gap-2 border-b border-gray-200">
                 <button
                   onClick={() => setPostFeedTab('Top')}
-                  className={`px-4 py-2 text-sm font-medium transition-colors ${
-                    postFeedTab === 'Top'
-                      ? 'text-gray-900 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${postFeedTab === 'Top'
+                    ? 'text-gray-900 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   En İyi
                 </button>
                 <button
                   onClick={() => setPostFeedTab('Latest')}
-                  className={`px-4 py-2 text-sm font-medium transition-colors ${
-                    postFeedTab === 'Latest'
-                      ? 'text-gray-900 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`px-4 py-2 text-sm font-medium transition-colors ${postFeedTab === 'Latest'
+                    ? 'text-gray-900 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   En Son
                 </button>
@@ -2185,71 +1830,72 @@ const CoinDetailPage: React.FC = () => {
       )}
 
       {/* Additional Stats Section - Scroll edildiğinde görünür */}
-        <div className="w-full px-4 py-8 bg-white">
-          <div className="max-w-7xl mx-auto">
+      <div className="w-full px-4 py-8 bg-white">
+        <div className="max-w-7xl mx-auto">
           <div className="space-y-8">
-              {/* Today's Gainers & Losers */}
-              <div className="space-y-6">
-                <h3 className="text-xl font-bold text-gray-900">Bugün Artan ve Azalan Coinler</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Gainers */}
-                  <div className="bg-white rounded-lg border border-gray-200 p-6">
-                    <h4 className="text-lg font-semibold text-green-600 mb-4">En Çok Artanlar (24s)</h4>
-                    <div className="space-y-3">
-                      {todayGainers.slice(0, 5).map((coin: any, index: number) => (
-                        <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm text-gray-500 w-6">{index + 1}</span>
-                            {coin.image && <img src={coin.image} alt={coin.name} className="w-8 h-8 rounded-full" />}
-                            <div>
-                              <div className="text-sm font-semibold text-gray-900">{coin.name}</div>
-                              <div className="text-xs text-gray-500">{coin.symbol}</div>
-              </div>
-            </div>
-                          <div className="text-right">
-                            <div className="text-sm font-semibold text-gray-900">${coin.current_price?.toLocaleString() || '0'}</div>
-                            <div className="text-xs text-green-600 font-medium">+{coin.price_change_24h?.toFixed(2) || '0'}%</div>
-          </div>
-        </div>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Losers */}
-                  <div className="bg-white rounded-lg border border-gray-200 p-6">
-                    <h4 className="text-lg font-semibold text-red-600 mb-4">En Çok Azalanlar (24s)</h4>
-                    <div className="space-y-3">
-                      {todayLosers.slice(0, 5).map((coin: any, index: number) => (
-                        <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm text-gray-500 w-6">{index + 1}</span>
-                            {coin.image && <img src={coin.image} alt={coin.name} className="w-8 h-8 rounded-full" />}
-                            <div>
-                              <div className="text-sm font-semibold text-gray-900">{coin.name}</div>
-                              <div className="text-xs text-gray-500">{coin.symbol}</div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-semibold text-gray-900">${coin.current_price?.toLocaleString() || '0'}</div>
-                            <div className="text-xs text-red-600 font-medium">{coin.price_change_24h?.toFixed(2) || '0'}%</div>
+            {/* Today's Gainers & Losers */}
+            <div className="space-y-6">
+              <h3 className="text-xl font-bold text-gray-900">Bugün Artan ve Azalan Coinler</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Gainers */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h4 className="text-lg font-semibold text-green-600 mb-4">En Çok Artanlar (24s)</h4>
+                  <div className="space-y-3">
+                    {todayGainers.slice(0, 5).map((coin: any, index: number) => (
+                      <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-gray-500 w-6">{index + 1}</span>
+                          {coin.image && <img src={coin.image} alt={coin.name} className="w-8 h-8 rounded-full" />}
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900">{coin.name}</div>
+                            <div className="text-xs text-gray-500">{coin.symbol}</div>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                        <div className="text-right">
+                          <div className="text-sm font-semibold text-gray-900">${coin.current_price?.toLocaleString() || '0'}</div>
+                          <div className="text-xs text-green-600 font-medium">+{coin.price_change_24h?.toFixed(2) || '0'}%</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Losers */}
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h4 className="text-lg font-semibold text-red-600 mb-4">En Çok Azalanlar (24s)</h4>
+                  <div className="space-y-3">
+                    {todayLosers.slice(0, 5).map((coin: any, index: number) => (
+                      <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-gray-500 w-6">{index + 1}</span>
+                          {coin.image && <img src={coin.image} alt={coin.name} className="w-8 h-8 rounded-full" />}
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900">{coin.name}</div>
+                            <div className="text-xs text-gray-500">{coin.symbol}</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-semibold text-gray-900">${coin.current_price?.toLocaleString() || '0'}</div>
+                          <div className="text-xs text-red-600 font-medium">{coin.price_change_24h?.toFixed(2) || '0'}%</div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Veri Tabloları */}
-              <div className="space-y-6">
-                <h3 className="text-xl font-bold text-gray-900">Veri Tabloları</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Tablo 1: Gainers - Bar Chart Active */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-green-600">En Çok Artanlar (24s)</CardTitle>
-                      <CardDescription>Son 24 saatte en çok yükselen coinler</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+            {/* Veri Tabloları */}
+            <div className="space-y-6">
+              <h3 className="text-xl font-bold text-gray-900">Veri Tabloları</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Tablo 1: Gainers - Bar Chart Active */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-green-600">En Çok Artanlar (24s)</CardTitle>
+                    <CardDescription>Son 24 saatte en çok yükselen coinler</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ClientOnly fallback={<div className="h-[200px] flex items-center justify-center text-gray-400">Grafik yükleniyor...</div>}>
                       <ChartContainer config={barChartConfig}>
                         <BarChart accessibilityLayer data={generateBarChartData(todayGainers, 'price_change_24h')}>
                           <CartesianGrid vertical={false} />
@@ -2268,6 +1914,7 @@ const CoinDetailPage: React.FC = () => {
                             strokeWidth={2}
                             radius={8}
                             activeIndex={2}
+                            isAnimationActive={false}
                             activeBar={({ ...props }) => (
                               <Rectangle
                                 {...props}
@@ -2280,43 +1927,45 @@ const CoinDetailPage: React.FC = () => {
                           />
                         </BarChart>
                       </ChartContainer>
-                      <div className="space-y-2 mt-4">
-                        {todayGainers.length > 0 ? (
-                          todayGainers.slice(0, 5).map((coin: any, index: number) => (
-                            <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-500 w-4">{index + 1}</span>
-                                {coin.image && <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full" />}
-                                <div>
-                                  <div className="text-xs font-semibold text-gray-900">{coin.name}</div>
-                                  <div className="text-xs text-gray-500">{coin.symbol}</div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-xs font-semibold text-gray-900">${coin.current_price?.toLocaleString() || '0'}</div>
-                                <div className="text-xs text-green-600 font-medium">+{(coin.price_change_24h || coin.price_change_percentage_24h || 0).toFixed(2)}%</div>
+                    </ClientOnly>
+                    <div className="space-y-2 mt-4">
+                      {todayGainers.length > 0 ? (
+                        todayGainers.slice(0, 5).map((coin: any, index: number) => (
+                          <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 w-4">{index + 1}</span>
+                              {coin.image && <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full" />}
+                              <div>
+                                <div className="text-xs font-semibold text-gray-900">{coin.name}</div>
+                                <div className="text-xs text-gray-500">{coin.symbol}</div>
                               </div>
                             </div>
-                          ))
-                        ) : (
-                          <div className="text-center text-gray-500 text-xs py-4">Yükleniyor...</div>
-                        )}
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex-col items-start gap-2 text-sm">
-                      <div className="flex gap-2 leading-none font-medium">
-                        Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
-                      </div>
-                    </CardFooter>
-                  </Card>
+                            <div className="text-right">
+                              <div className="text-xs font-semibold text-gray-900">${coin.current_price?.toLocaleString() || '0'}</div>
+                              <div className="text-xs text-green-600 font-medium">+{(coin.price_change_24h || coin.price_change_percentage_24h || 0).toFixed(2)}%</div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-500 text-xs py-4">Yükleniyor...</div>
+                      )}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex-col items-start gap-2 text-sm">
+                    <div className="flex gap-2 leading-none font-medium">
+                      Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
+                    </div>
+                  </CardFooter>
+                </Card>
 
-                  {/* Tablo 2: Losers - Pie Chart Label List */}
-                  <Card className="flex flex-col">
-                    <CardHeader className="items-center pb-0">
-                      <CardTitle className="text-red-600">En Çok Azalanlar (24s)</CardTitle>
-                      <CardDescription>Son 24 saatte en çok düşen coinler</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 pb-0">
+                {/* Tablo 2: Losers - Pie Chart Label List */}
+                <Card className="flex flex-col">
+                  <CardHeader className="items-center pb-0">
+                    <CardTitle className="text-red-600">En Çok Azalanlar (24s)</CardTitle>
+                    <CardDescription>Son 24 saatte en çok düşen coinler</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 pb-0">
+                    <ClientOnly fallback={<div className="h-[200px] flex items-center justify-center text-gray-400">Grafik yükleniyor...</div>}>
                       <ChartContainer
                         config={pieChartConfig}
                         className="[&_.recharts-text]:fill-background mx-auto aspect-square max-h-[200px] mb-4"
@@ -2325,7 +1974,7 @@ const CoinDetailPage: React.FC = () => {
                           <ChartTooltip
                             content={<ChartTooltipContent nameKey="visitors" hideLabel />}
                           />
-                          <Pie data={generatePieChartData(todayLosers, 'price_change_24h')} dataKey="visitors">
+                          <Pie data={generatePieChartData(todayLosers, 'price_change_24h')} dataKey="visitors" isAnimationActive={false}>
                             <LabelList
                               dataKey="browser"
                               className="fill-background"
@@ -2335,43 +1984,45 @@ const CoinDetailPage: React.FC = () => {
                           </Pie>
                         </PieChart>
                       </ChartContainer>
-                      <div className="space-y-2">
-                        {todayLosers.length > 0 ? (
-                          todayLosers.slice(0, 5).map((coin: any, index: number) => (
-                            <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-500 w-4">{index + 1}</span>
-                                {coin.image && <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full" />}
-                                <div>
-                                  <div className="text-xs font-semibold text-gray-900">{coin.name}</div>
-                                  <div className="text-xs text-gray-500">{coin.symbol}</div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-xs font-semibold text-gray-900">${coin.current_price?.toLocaleString() || '0'}</div>
-                                <div className="text-xs text-red-600 font-medium">{(coin.price_change_24h || coin.price_change_percentage_24h || 0).toFixed(2)}%</div>
+                    </ClientOnly>
+                    <div className="space-y-2">
+                      {todayLosers.length > 0 ? (
+                        todayLosers.slice(0, 5).map((coin: any, index: number) => (
+                          <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 w-4">{index + 1}</span>
+                              {coin.image && <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full" />}
+                              <div>
+                                <div className="text-xs font-semibold text-gray-900">{coin.name}</div>
+                                <div className="text-xs text-gray-500">{coin.symbol}</div>
                               </div>
                             </div>
-                          ))
-                        ) : (
-                          <div className="text-center text-gray-500 text-xs py-4">Yükleniyor...</div>
-                        )}
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex-col gap-2 text-sm">
-                      <div className="flex items-center gap-2 leading-none font-medium">
-                        Trending down this month <TrendingUp className="h-4 w-4 rotate-180" />
-                      </div>
-                    </CardFooter>
-                  </Card>
+                            <div className="text-right">
+                              <div className="text-xs font-semibold text-gray-900">${coin.current_price?.toLocaleString() || '0'}</div>
+                              <div className="text-xs text-red-600 font-medium">{(coin.price_change_24h || coin.price_change_percentage_24h || 0).toFixed(2)}%</div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-500 text-xs py-4">Yükleniyor...</div>
+                      )}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex-col gap-2 text-sm">
+                    <div className="flex items-center gap-2 leading-none font-medium">
+                      Trending down this month <TrendingUp className="h-4 w-4 rotate-180" />
+                    </div>
+                  </CardFooter>
+                </Card>
 
-                  {/* Tablo 3: Top Market Cap - Radar Chart Dots */}
-                  <Card>
-                    <CardHeader className="items-center">
-                      <CardTitle>En Yüksek Piyasa Değeri</CardTitle>
-                      <CardDescription>Piyasa değerine göre en büyük coinler</CardDescription>
-                    </CardHeader>
-                    <CardContent className="pb-0">
+                {/* Tablo 3: Top Market Cap - Radar Chart Dots */}
+                <Card>
+                  <CardHeader className="items-center">
+                    <CardTitle>En Yüksek Piyasa Değeri</CardTitle>
+                    <CardDescription>Piyasa değerine göre en büyük coinler</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pb-0">
+                    <ClientOnly fallback={<div className="h-[200px] flex items-center justify-center text-gray-400">Grafik yükleniyor...</div>}>
                       <ChartContainer
                         config={radarChartConfig}
                         className="mx-auto aspect-square max-h-[200px] mb-4"
@@ -2384,6 +2035,7 @@ const CoinDetailPage: React.FC = () => {
                             dataKey="desktop"
                             fill="var(--color-desktop)"
                             fillOpacity={0.6}
+                            isAnimationActive={false}
                             dot={{
                               r: 4,
                               fillOpacity: 1,
@@ -2391,42 +2043,44 @@ const CoinDetailPage: React.FC = () => {
                           />
                         </RadarChart>
                       </ChartContainer>
-                      <div className="space-y-2">
-                        {topMarketCapCoins.length > 0 ? (
-                          topMarketCapCoins.slice(0, 5).map((coin: any, index: number) => (
-                            <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-500 w-4">{index + 1}</span>
-                                {coin.image && <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full" />}
-                                <div>
-                                  <div className="text-xs font-semibold text-gray-900">{coin.name}</div>
-                                  <div className="text-xs text-gray-500">{coin.symbol}</div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-xs font-semibold text-gray-900">{formatCurrency(coin.market_cap || 0)}</div>
+                    </ClientOnly>
+                    <div className="space-y-2">
+                      {topMarketCapCoins.length > 0 ? (
+                        topMarketCapCoins.slice(0, 5).map((coin: any, index: number) => (
+                          <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 w-4">{index + 1}</span>
+                              {coin.image && <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full" />}
+                              <div>
+                                <div className="text-xs font-semibold text-gray-900">{coin.name}</div>
+                                <div className="text-xs text-gray-500">{coin.symbol}</div>
                               </div>
                             </div>
-                          ))
-                        ) : (
-                          <div className="text-center text-gray-500 text-xs py-4">Yükleniyor...</div>
-                        )}
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex-col gap-2 text-sm">
-                      <div className="flex items-center gap-2 leading-none font-medium">
-                        Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
-                      </div>
-                    </CardFooter>
-                  </Card>
+                            <div className="text-right">
+                              <div className="text-xs font-semibold text-gray-900">{formatCurrency(coin.market_cap || 0)}</div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-500 text-xs py-4">Yükleniyor...</div>
+                      )}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex-col gap-2 text-sm">
+                    <div className="flex items-center gap-2 leading-none font-medium">
+                      Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
+                    </div>
+                  </CardFooter>
+                </Card>
 
-                  {/* Tablo 4: Trending - Radial Chart Label */}
-                  <Card className="flex flex-col">
-                    <CardHeader className="items-center pb-0">
-                      <CardTitle>En Trend Coinler</CardTitle>
-                      <CardDescription>En popüler ve trend olan coinler</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 pb-0">
+                {/* Tablo 4: Trending - Radial Chart Label */}
+                <Card className="flex flex-col">
+                  <CardHeader className="items-center pb-0">
+                    <CardTitle>En Trend Coinler</CardTitle>
+                    <CardDescription>En popüler ve trend olan coinler</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 pb-0">
+                    <ClientOnly fallback={<div className="h-[200px] flex items-center justify-center text-gray-400">Grafik yükleniyor...</div>}>
                       <ChartContainer
                         config={pieChartConfig}
                         className="mx-auto aspect-square max-h-[200px] mb-4"
@@ -2442,7 +2096,7 @@ const CoinDetailPage: React.FC = () => {
                             cursor={false}
                             content={<ChartTooltipContent hideLabel nameKey="browser" />}
                           />
-                          <RadialBar dataKey="visitors" background>
+                          <RadialBar dataKey="visitors" background isAnimationActive={false}>
                             <LabelList
                               position="insideStart"
                               dataKey="browser"
@@ -2452,45 +2106,47 @@ const CoinDetailPage: React.FC = () => {
                           </RadialBar>
                         </RadialBarChart>
                       </ChartContainer>
-                      <div className="space-y-2">
-                        {trendingCoins.length > 0 ? (
-                          trendingCoins.slice(0, 5).map((coin: any, index: number) => (
-                            <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-500 w-4">{index + 1}</span>
-                                {coin.image && <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full" />}
-                                <div>
-                                  <div className="text-xs font-semibold text-gray-900">{coin.name}</div>
-                                  <div className="text-xs text-gray-500">{coin.symbol}</div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-xs font-semibold text-gray-900">${coin.current_price?.toLocaleString() || '0'}</div>
-                                <div className={`text-xs font-medium ${(coin.price_change_24h || coin.price_change_percentage_24h || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                  {((coin.price_change_24h || coin.price_change_percentage_24h || 0) >= 0 ? '+' : '')}{(coin.price_change_24h || coin.price_change_percentage_24h || 0).toFixed(2)}%
-                                </div>
+                    </ClientOnly>
+                    <div className="space-y-2">
+                      {trendingCoins.length > 0 ? (
+                        trendingCoins.slice(0, 5).map((coin: any, index: number) => (
+                          <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 w-4">{index + 1}</span>
+                              {coin.image && <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full" />}
+                              <div>
+                                <div className="text-xs font-semibold text-gray-900">{coin.name}</div>
+                                <div className="text-xs text-gray-500">{coin.symbol}</div>
                               </div>
                             </div>
-                          ))
-                        ) : (
-                          <div className="text-center text-gray-500 text-xs py-4">Yükleniyor...</div>
-                        )}
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex-col gap-2 text-sm">
-                      <div className="flex items-center gap-2 leading-none font-medium">
-                        Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
-                      </div>
-                    </CardFooter>
-                  </Card>
+                            <div className="text-right">
+                              <div className="text-xs font-semibold text-gray-900">${coin.current_price?.toLocaleString() || '0'}</div>
+                              <div className={`text-xs font-medium ${(coin.price_change_24h || coin.price_change_percentage_24h || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {((coin.price_change_24h || coin.price_change_percentage_24h || 0) >= 0 ? '+' : '')}{(coin.price_change_24h || coin.price_change_percentage_24h || 0).toFixed(2)}%
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-500 text-xs py-4">Yükleniyor...</div>
+                      )}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex-col gap-2 text-sm">
+                    <div className="flex items-center gap-2 leading-none font-medium">
+                      Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
+                    </div>
+                  </CardFooter>
+                </Card>
 
-                  {/* Tablo 5: Top Volume - Stacked Bar Chart */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>En Yüksek Hacim</CardTitle>
-                      <CardDescription>24 saatlik işlem hacmine göre</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                {/* Tablo 5: Top Volume - Stacked Bar Chart */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>En Yüksek Hacim</CardTitle>
+                    <CardDescription>24 saatlik işlem hacmine göre</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ClientOnly fallback={<div className="h-[200px] flex items-center justify-center text-gray-400">Grafik yükleniyor...</div>}>
                       <ChartContainer config={stackedBarConfig}>
                         <BarChart accessibilityLayer data={generateStackedBarData(topVolumeCoins)}>
                           <XAxis
@@ -2509,12 +2165,14 @@ const CoinDetailPage: React.FC = () => {
                             stackId="a"
                             fill="var(--color-running)"
                             radius={[0, 0, 4, 4]}
+                            isAnimationActive={false}
                           />
                           <Bar
                             dataKey="swimming"
                             stackId="a"
                             fill="var(--color-swimming)"
                             radius={[4, 4, 0, 0]}
+                            isAnimationActive={false}
                           />
                           <ChartTooltip
                             content={<ChartTooltipContent hideLabel />}
@@ -2523,40 +2181,42 @@ const CoinDetailPage: React.FC = () => {
                           />
                         </BarChart>
                       </ChartContainer>
-                      <div className="space-y-2 mt-4">
-                        {topVolumeCoins.length > 0 ? (
-                          topVolumeCoins.slice(0, 5).map((coin: any, index: number) => (
-                            <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-500 w-4">{index + 1}</span>
-                                {coin.image && <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full" />}
-                                <div>
-                                  <div className="text-xs font-semibold text-gray-900">{coin.name}</div>
-                                  <div className="text-xs text-gray-500">{coin.symbol}</div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-xs font-semibold text-gray-900">${coin.current_price?.toLocaleString() || '0'}</div>
-                                <div className="text-xs text-gray-600 font-medium">
-                                  {coin.total_volume ? `$${(coin.total_volume / 1e9).toFixed(2)}B` : '-'}
-                                </div>
+                    </ClientOnly>
+                    <div className="space-y-2 mt-4">
+                      {topVolumeCoins.length > 0 ? (
+                        topVolumeCoins.slice(0, 5).map((coin: any, index: number) => (
+                          <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 w-4">{index + 1}</span>
+                              {coin.image && <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full" />}
+                              <div>
+                                <div className="text-xs font-semibold text-gray-900">{coin.name}</div>
+                                <div className="text-xs text-gray-500">{coin.symbol}</div>
                               </div>
                             </div>
-                          ))
-                        ) : (
-                          <div className="text-center text-gray-500 text-xs py-4">Yükleniyor...</div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
+                            <div className="text-right">
+                              <div className="text-xs font-semibold text-gray-900">${coin.current_price?.toLocaleString() || '0'}</div>
+                              <div className="text-xs text-gray-600 font-medium">
+                                {coin.total_volume ? `$${(coin.total_volume / 1e9).toFixed(2)}B` : '-'}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-500 text-xs py-4">Yükleniyor...</div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
 
-                  {/* Tablo 6: Recent - Bar Chart Negative */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Yeni Eklenenler</CardTitle>
-                      <CardDescription>Yeni listelenen coinler</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                {/* Tablo 6: Recent - Bar Chart Negative */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Yeni Eklenenler</CardTitle>
+                    <CardDescription>Yeni listelenen coinler</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ClientOnly fallback={<div className="h-[200px] flex items-center justify-center text-gray-400">Grafik yükleniyor...</div>}>
                       <ChartContainer config={negativeBarConfig}>
                         <BarChart accessibilityLayer data={generateNegativeBarData(recentCoins)}>
                           <CartesianGrid vertical={false} />
@@ -2564,7 +2224,7 @@ const CoinDetailPage: React.FC = () => {
                             cursor={false}
                             content={<ChartTooltipContent hideLabel hideIndicator />}
                           />
-                          <Bar dataKey="visitors">
+                          <Bar dataKey="visitors" isAnimationActive={false}>
                             <LabelList position="top" dataKey="month" fillOpacity={1} />
                             {generateNegativeBarData(recentCoins).map((item, index) => (
                               <Cell
@@ -2575,42 +2235,43 @@ const CoinDetailPage: React.FC = () => {
                           </Bar>
                         </BarChart>
                       </ChartContainer>
-                      <div className="space-y-2 mt-4">
-                        {recentCoins.length > 0 ? (
-                          recentCoins.slice(0, 5).map((coin: any, index: number) => (
-                            <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-500 w-4">{index + 1}</span>
-                                {coin.image && <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full" />}
-                                <div>
-                                  <div className="text-xs font-semibold text-gray-900">{coin.name}</div>
-                                  <div className="text-xs text-gray-500">{coin.symbol}</div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-xs font-semibold text-gray-900">${coin.current_price?.toLocaleString() || '0'}</div>
-                                <div className="text-xs text-gray-600 font-medium">
-                                  Rank: {coin.market_cap_rank || '-'}
-                                </div>
+                    </ClientOnly>
+                    <div className="space-y-2 mt-4">
+                      {recentCoins.length > 0 ? (
+                        recentCoins.slice(0, 5).map((coin: any, index: number) => (
+                          <div key={coin.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer" onClick={() => router.push(`/currencies/${coin.id}`)}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 w-4">{index + 1}</span>
+                              {coin.image && <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full" />}
+                              <div>
+                                <div className="text-xs font-semibold text-gray-900">{coin.name}</div>
+                                <div className="text-xs text-gray-500">{coin.symbol}</div>
                               </div>
                             </div>
-                          ))
-                        ) : (
-                          <div className="text-center text-gray-500 text-xs py-4">Yükleniyor...</div>
-                        )}
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex-col items-start gap-2 text-sm">
-                      <div className="flex gap-2 leading-none font-medium">
-                        Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
-                      </div>
-                    </CardFooter>
-                  </Card>
-                </div>
+                            <div className="text-right">
+                              <div className="text-xs font-semibold text-gray-900">${coin.current_price?.toLocaleString() || '0'}</div>
+                              <div className="text-xs text-gray-600 font-medium">
+                                Rank: {coin.market_cap_rank || '-'}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-500 text-xs py-4">Yükleniyor...</div>
+                      )}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex-col items-start gap-2 text-sm">
+                    <div className="flex gap-2 leading-none font-medium">
+                      Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
+                    </div>
+                  </CardFooter>
+                </Card>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 px-4 py-12 mt-12">
@@ -2620,9 +2281,9 @@ const CoinDetailPage: React.FC = () => {
             {/* Sol Taraf - Logo ve Açıklama */}
             <div className="lg:col-span-2">
               <div className="flex items-center gap-2 mb-4">
-                <Image 
+                <Image
                   src={logoImage}
-                  alt="Dijital Market Logo" 
+                  alt="Dijital Market Logo"
                   height={64}
                   width={250}
                   className="h-16 w-auto object-contain"
